@@ -1,0 +1,30 @@
+[
+  {
+    "id": "1",
+    "name": "Electronics",
+    "slug": "electronics",
+    "description": "Latest electronics and gadgets",
+    "image": "/categories/electronics.jpg",
+    "createdAt": "2024-01-01T10:00:00Z",
+    "updatedAt": "2024-01-01T10:00:00Z"
+  },
+  {
+    "id": "2",
+    "name": "Accessories",
+    "slug": "accessories",
+    "description": "Tech accessories and peripherals",
+    "image": "/categories/accessories.jpg",
+    "createdAt": "2024-01-02T10:00:00Z",
+    "updatedAt": "2024-01-02T10:00:00Z"
+  },
+  {
+    "id": "3",
+    "name": "Computers",
+    "slug": "computers",
+    "description": "Laptops, desktops and computer components",
+    "image": "/categories/computers.jpg",
+    "createdAt": "2024-01-03T10:00:00Z",
+    "updatedAt": "2024-01-03T10:00:00Z"
+  }
+]
+

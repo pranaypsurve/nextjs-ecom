@@ -1,65 +1,185 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { Row, Col, Card, Button, Typography, Spin } from "antd";
+import { ShoppingCartOutlined } from "@ant-design/icons";
+import Link from "next/link";
 import Image from "next/image";
+import { useAppDispatch } from "@/store/hooks";
+import { addToCart } from "@/store/slices/cartSlice";
+import { dataService } from "@/lib/services/dataService";
+import { formatCurrency } from "@/lib/utils/currency";
+import type { Product, Category } from "@/lib/data";
+
+const { Title, Text, Paragraph } = Typography;
+const { Meta } = Card;
 
 export default function Home() {
+  const dispatch = useAppDispatch();
+  const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Load data from JSON
+    const loadData = () => {
+      setLoading(true);
+      try {
+        const products = dataService.getFeaturedProducts();
+        const cats = dataService.getCategories();
+        setFeaturedProducts(products);
+        setCategories(cats);
+      } catch (error) {
+        console.error("Error loading data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, []);
+
+  const handleAddToCart = (product: Product) => {
+    dispatch(addToCart({ product, quantity: 1 }));
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div style={{ background: "#f5f5f5", minHeight: "calc(100vh - 64px)" }}>
+      {/* Hero Section */}
+      <section
+        style={{
+          background: "linear-gradient(135deg, var(--color-primary) 0%, #52c41a 100%)",
+          color: "#fff",
+          padding: "80px 24px",
+          textAlign: "center",
+        }}
+      >
+        <Title level={1} style={{ color: "#fff", marginBottom: "16px" }}>
+          Welcome to Our Store
+        </Title>
+        <Paragraph style={{ color: "#fff", fontSize: "18px", marginBottom: "32px" }}>
+          Discover amazing products at great prices
+        </Paragraph>
+        <Link href="/products">
+          <Button type="primary" size="large" style={{ background: "#fff", color: "var(--color-primary)" }}>
+            Shop Now
+          </Button>
+        </Link>
+      </section>
+
+      {/* Categories Section */}
+      <section style={{ padding: "60px 24px", maxWidth: "1200px", margin: "0 auto" }}>
+        <Title level={2} style={{ textAlign: "center", marginBottom: "40px" }}>
+          Shop by Category
+        </Title>
+        <Row gutter={[24, 24]}>
+          {categories.map((category) => (
+            <Col xs={24} sm={12} md={8} key={category.id}>
+              <Link href={`/products?category=${category.id}`}>
+                <Card
+                  hoverable
+                  cover={
+                    <div
+                      style={{
+                        height: "200px",
+                        background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <Text strong style={{ color: "#fff", fontSize: "24px" }}>
+                        {category.name}
+                      </Text>
+                    </div>
+                  }
+                >
+                  <Meta title={category.name} description={category.description} />
+                </Card>
+              </Link>
+            </Col>
+          ))}
+        </Row>
+      </section>
+
+      {/* Featured Products Section */}
+      <section style={{ padding: "60px 24px", background: "#fff", maxWidth: "1200px", margin: "0 auto" }}>
+        <Title level={2} style={{ textAlign: "center", marginBottom: "40px" }}>
+          Featured Products
+        </Title>
+        {loading ? (
+          <div style={{ textAlign: "center", padding: "60px" }}>
+            <Spin size="large" />
+          </div>
+        ) : (
+          <Row gutter={[24, 24]}>
+            {featuredProducts.map((product) => (
+              <Col xs={24} sm={12} md={8} lg={6} key={product.id}>
+                <Card
+                  hoverable
+                  cover={
+                    <div
+                      style={{
+                        height: "250px",
+                        background: "#f5f5f5",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        position: "relative",
+                      }}
+                    >
+                      <Text style={{ fontSize: "48px" }}>📦</Text>
+                    </div>
+                  }
+                  actions={[
+                    <Button
+                      type="primary"
+                      icon={<ShoppingCartOutlined />}
+                      onClick={() => handleAddToCart(product)}
+                      block
+                    >
+                      Add to Cart
+                    </Button>,
+                  ]}
+                >
+                  <Link href={`/products/${product.id}`}>
+                    <Meta
+                      title={product.name}
+                      description={
+                        <div>
+                          <Text strong style={{ color: "var(--color-primary)", fontSize: "18px" }}>
+                            {formatCurrency(product.price)}
+                          </Text>
+                          {product.originalPrice && (
+                            <Text
+                              delete
+                              type="secondary"
+                              style={{ marginLeft: "8px", fontSize: "14px" }}
+                            >
+                              {formatCurrency(product.originalPrice)}
+                            </Text>
+                          )}
+                          <Paragraph
+                            ellipsis={{ rows: 2 }}
+                            style={{ marginTop: "8px", marginBottom: 0, color: "#666" }}
+                          >
+                            {product.description}
+                          </Paragraph>
+                        </div>
+                      }
+                    />
+                  </Link>
+                </Card>
+              </Col>
+            ))}
+          </Row>
+        )}
+        <div style={{ textAlign: "center", marginTop: "40px" }}>
+          <Link href="/products">
+            <Button size="large">View All Products</Button>
+          </Link>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+      </section>
     </div>
   );
 }

@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
 import { Form, Input, Button, Card, Typography, App } from "antd";
 import { UserOutlined, LockOutlined, MailOutlined } from "@ant-design/icons";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAppDispatch } from "@/store/hooks";
 import { setCredentials } from "@/store/slices/authSlice";
+import { useRegisterMutation } from "@/store/api/authApi";
 import { Role } from "@/lib/constants";
 
 const { Title, Text } = Typography;
@@ -15,7 +15,7 @@ export default function RegisterPage() {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const { message } = App.useApp();
-  const [loading, setLoading] = useState(false);
+  const [register, { isLoading }] = useRegisterMutation();
 
   const handleSubmit = async (values: {
     name: string;
@@ -28,29 +28,46 @@ export default function RegisterPage() {
       return;
     }
 
-    setLoading(true);
     try {
-      // Simulate API call - In real app, call registration API
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      const user = {
-        id: `user-${Date.now()}`,
-        email: values.email,
+      const result = await register({
         name: values.name,
-        role: Role.CUSTOMER,
-        phone: "",
-      };
+        email: values.email,
+        password: values.password,
+      }).unwrap();
 
-      const token = `mock_token_${Date.now()}`;
+      // Validate response structure
+      if (!result.user || !result.token) {
+        message.error("Invalid response from server");
+        return;
+      }
 
-      dispatch(setCredentials({ user, token }));
+      // Role comes directly from the database
+      const userRole = result.user.role as Role;
+
+      dispatch(
+        setCredentials({
+          user: {
+            id: result.user.id,
+            email: result.user.email,
+            name: result.user.name,
+            role: userRole,
+            phone: result.user.phone || "",
+          },
+          token: result.token,
+        })
+      );
+
       message.success("Registration successful!");
       router.push("/");
       router.refresh();
-    } catch (error) {
-      message.error("Registration failed. Please try again.");
-    } finally {
-      setLoading(false);
+    } catch (error: any) {
+      console.error("Registration error:", error);
+      const errorMessage = 
+        error?.data?.message || 
+        error?.data?.error || 
+        error?.message || 
+        "Registration failed. Please try again.";
+      message.error(errorMessage);
     }
   };
 
@@ -71,64 +88,66 @@ export default function RegisterPage() {
           <Text type="secondary">Sign up to get started</Text>
         </div>
 
-        <Form
-          name="register"
-          onFinish={handleSubmit}
-          autoComplete="off"
-          layout="vertical"
-          size="large"
-        >
-          <Form.Item
-            name="name"
-            rules={[{ required: true, message: "Please input your name!" }]}
+        <div suppressHydrationWarning>
+          <Form
+            name="register"
+            onFinish={handleSubmit}
+            autoComplete="off"
+            layout="vertical"
+            size="large"
           >
-            <Input prefix={<UserOutlined />} placeholder="Full Name" />
-          </Form.Item>
+            <Form.Item
+              name="name"
+              rules={[{ required: true, message: "Please input your name!" }]}
+            >
+              <Input prefix={<UserOutlined />} placeholder="Full Name" />
+            </Form.Item>
 
-          <Form.Item
-            name="email"
-            rules={[
-              { required: true, message: "Please input your email!" },
-              { type: "email", message: "Please enter a valid email!" },
-            ]}
-          >
-            <Input prefix={<MailOutlined />} placeholder="Email" />
-          </Form.Item>
+            <Form.Item
+              name="email"
+              rules={[
+                { required: true, message: "Please input your email!" },
+                { type: "email", message: "Please enter a valid email!" },
+              ]}
+            >
+              <Input prefix={<MailOutlined />} placeholder="Email" />
+            </Form.Item>
 
-          <Form.Item
-            name="password"
-            rules={[
-              { required: true, message: "Please input your password!" },
-              { min: 6, message: "Password must be at least 6 characters!" },
-            ]}
-          >
-            <Input.Password prefix={<LockOutlined />} placeholder="Password" />
-          </Form.Item>
+            <Form.Item
+              name="password"
+              rules={[
+                { required: true, message: "Please input your password!" },
+                { min: 6, message: "Password must be at least 6 characters!" },
+              ]}
+            >
+              <Input.Password prefix={<LockOutlined />} placeholder="Password" />
+            </Form.Item>
 
-          <Form.Item
-            name="confirmPassword"
-            dependencies={["password"]}
-            rules={[
-              { required: true, message: "Please confirm your password!" },
-              ({ getFieldValue }) => ({
-                validator(_, value) {
-                  if (!value || getFieldValue("password") === value) {
-                    return Promise.resolve();
-                  }
-                  return Promise.reject(new Error("Passwords do not match!"));
-                },
-              }),
-            ]}
-          >
-            <Input.Password prefix={<LockOutlined />} placeholder="Confirm Password" />
-          </Form.Item>
+            <Form.Item
+              name="confirmPassword"
+              dependencies={["password"]}
+              rules={[
+                { required: true, message: "Please confirm your password!" },
+                ({ getFieldValue }) => ({
+                  validator(_, value) {
+                    if (!value || getFieldValue("password") === value) {
+                      return Promise.resolve();
+                    }
+                    return Promise.reject(new Error("Passwords do not match!"));
+                  },
+                }),
+              ]}
+            >
+              <Input.Password prefix={<LockOutlined />} placeholder="Confirm Password" />
+            </Form.Item>
 
-          <Form.Item>
-            <Button type="primary" htmlType="submit" block loading={loading}>
-              Sign Up
-            </Button>
-          </Form.Item>
-        </Form>
+            <Form.Item>
+              <Button type="primary" htmlType="submit" block loading={isLoading}>
+                Sign Up
+              </Button>
+            </Form.Item>
+          </Form>
+        </div>
 
         <div style={{ textAlign: "center", marginTop: "16px" }}>
           <Text type="secondary">

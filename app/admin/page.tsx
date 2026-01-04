@@ -94,7 +94,10 @@ export default function AdminDashboard() {
                   <Card hoverable size="small">Manage Products</Card>
                 </Link>
                 <Link href="/admin/orders">
-                  <Card hoverable size="small">Manage Orders</Card>
+                  <Card hoverable size="small">Order Management</Card>
+                </Link>
+                <Link href="/admin/users">
+                  <Card hoverable size="small">User Management</Card>
                 </Link>
                 <Link href="/admin/coupons">
                   <Card hoverable size="small">Manage Coupons</Card>

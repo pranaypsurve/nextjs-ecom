@@ -7,37 +7,44 @@ import Link from "next/link";
 import Image from "next/image";
 import { useAppDispatch } from "@/store/hooks";
 import { addToCart } from "@/store/slices/cartSlice";
-import { dataService } from "@/lib/services/dataService";
+import { useGetProductsQuery } from "@/store/api/productsApi";
+import { useGetCategoriesQuery } from "@/store/api/categoriesApi";
 import { formatCurrency } from "@/lib/utils/currency";
-import type { Product, Category } from "@/lib/data";
+import type { Product } from "@/lib/data";
 
 const { Title, Text, Paragraph } = Typography;
 const { Meta } = Card;
 
 export default function Home() {
   const dispatch = useAppDispatch();
-  const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    // Load data from JSON
-    const loadData = () => {
-      setLoading(true);
-      try {
-        const products = dataService.getFeaturedProducts();
-        const cats = dataService.getCategories();
-        setFeaturedProducts(products);
-        setCategories(cats);
-      } catch (error) {
-        console.error("Error loading data:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+  // Get data from API
+  const { data: allProducts = [], isLoading: productsLoading } = useGetProductsQuery();
+  const { data: categories = [], isLoading: categoriesLoading } = useGetCategoriesQuery();
 
-    loadData();
-  }, []);
+  // Transform API products to match Product interface and filter featured
+  // API: price = original, discount_price = discounted
+  // Product: price = current (discounted if available), originalPrice = original
+  const featuredProducts: Product[] = allProducts
+    .filter((p) => p.is_active !== false)
+    .slice(0, 8) // Get first 8 active products as featured
+    .map((p) => ({
+      id: String(p.id),
+      name: p.name,
+      description: p.description,
+      price: p.discount_price || p.price, // Use discount_price if available, else original price
+      originalPrice: p.discount_price ? p.price : undefined, // Original price only if there's a discount
+      images: p.images || [],
+      categoryId: String(p.categoryId),
+      stock: p.inventory_total,
+      featured: true,
+      rating: p.rating,
+      reviews: p.reviews,
+      createdAt: p.createdAt || new Date().toISOString(),
+      updatedAt: p.updatedAt || new Date().toISOString(),
+    }));
+
+  const loading = productsLoading || categoriesLoading;
 
   const handleAddToCart = (product: Product) => {
     dispatch(addToCart({ product, quantity: 1 }));
@@ -107,7 +114,7 @@ export default function Home() {
         <Title level={2} style={{ textAlign: "center", marginBottom: "40px" }}>
           Featured Products
         </Title>
-        {loading ? (
+        {(loading || categoriesLoading) ? (
           <div style={{ textAlign: "center", padding: "60px" }}>
             <Spin size="large" />
           </div>

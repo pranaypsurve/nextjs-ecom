@@ -4,18 +4,25 @@ export enum Role {
   ADMIN = "admin",
   INVENTORY = "inventory",
   ORDER = "order",
+  USER = "user",
 }
 
 // API Configuration
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3000/api";
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001";
 
 // Route Permissions
 export const ROUTE_PERMISSIONS = {
   "/admin": [Role.ADMIN],
-  "/cart": [Role.CUSTOMER],
-  "/checkout": [Role.CUSTOMER],
-  "/profile": [Role.CUSTOMER, Role.ADMIN],
-  "/orders": [Role.CUSTOMER, Role.ADMIN],
+  "/admin/categories": [Role.ADMIN],
+  "/admin/products": [Role.ADMIN],
+  "/admin/orders": [Role.ADMIN],
+  "/admin/users": [Role.ADMIN],
+  "/admin/coupons": [Role.ADMIN],
+  "/admin/gift-cards": [Role.ADMIN],
+  "/cart": [Role.USER],
+  "/checkout": [Role.USER],
+  "/profile": [Role.ADMIN, Role.USER],
+  "/orders": [Role.ADMIN, Role.USER],
 } as const;
 
 // Application Colors (4-color user engagement scheme)

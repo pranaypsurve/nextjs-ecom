@@ -1,10 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Table, Tag, Select, Typography, Space } from "antd";
+import { Table, Tag, Select, Typography, Space, Button, App, Popconfirm } from "antd";
+import { DeleteOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import ProtectedRoute from "@/components/common/ProtectedRoute";
 import { Role } from "@/lib/constants";
+import {
+  useGetOrdersQuery,
+  useUpdateOrderMutation,
+  useDeleteOrderMutation,
+} from "@/store/api/ordersApi";
 import { formatCurrency } from "@/lib/utils/currency";
 import type { Order } from "@/lib/data";
 
@@ -22,16 +27,36 @@ interface OrderTableItem {
 }
 
 export default function AdminOrdersPage() {
-  const [orders, setOrders] = useState<Order[]>([]);
+  const { message } = App.useApp();
+  
+  // API hooks
+  const { data: orders = [], isLoading, refetch } = useGetOrdersQuery();
+  const [updateOrder, { isLoading: isUpdating }] = useUpdateOrderMutation();
+  const [deleteOrder, { isLoading: isDeleting }] = useDeleteOrderMutation();
 
-  useEffect(() => {
-    // Load orders
-    setOrders([]);
-  }, []);
+  const handleStatusChange = async (orderId: string | number, status: string) => {
+    try {
+      await updateOrder({
+        id: orderId,
+        data: { status: status as any },
+      }).unwrap();
+      message.success("Order status updated successfully");
+      refetch();
+    } catch (error: any) {
+      const errorMessage = error?.data?.message || error?.message || "Failed to update order status";
+      message.error(errorMessage);
+    }
+  };
 
-  const handleStatusChange = (orderId: string, status: string) => {
-    // Update order status
-    console.log("Update order status", orderId, status);
+  const handleDelete = async (id: string | number) => {
+    try {
+      await deleteOrder(id).unwrap();
+      message.success("Order deleted successfully");
+      refetch();
+    } catch (error: any) {
+      const errorMessage = error?.data?.message || error?.message || "Failed to delete order";
+      message.error(errorMessage);
+    }
   };
 
   const columns: ColumnsType<OrderTableItem> = [
@@ -62,9 +87,10 @@ export default function AdminOrdersPage() {
       key: "status",
       render: (status: string, record) => (
         <Select
-          value={status}
+          value={status || "pending"}
           onChange={(value) => handleStatusChange(record.id, value)}
           style={{ width: 120 }}
+          disabled={isUpdating}
         >
           <Select.Option value="pending">Pending</Select.Option>
           <Select.Option value="confirmed">Confirmed</Select.Option>
@@ -80,6 +106,9 @@ export default function AdminOrdersPage() {
       dataIndex: "paymentStatus",
       key: "paymentStatus",
       render: (status: string) => {
+        if (!status) {
+          return <Tag color="default">N/A</Tag>;
+        }
         const colorMap: Record<string, string> = {
           pending: "orange",
           paid: "green",
@@ -89,17 +118,32 @@ export default function AdminOrdersPage() {
         return <Tag color={colorMap[status] || "default"}>{status.toUpperCase()}</Tag>;
       },
     },
+    {
+      title: "Actions",
+      key: "actions",
+      render: (_, record) => (
+        <Popconfirm
+          title="Delete order?"
+          onConfirm={() => handleDelete(record.id)}
+          disabled={isDeleting}
+        >
+          <Button danger icon={<DeleteOutlined />} loading={isDeleting} size="small">
+            Delete
+          </Button>
+        </Popconfirm>
+      ),
+    },
   ];
 
   const tableData: OrderTableItem[] = orders.map((order) => ({
-    key: order.id,
-    id: order.id,
-    orderNumber: `ORD-${order.id.slice(0, 8).toUpperCase()}`,
-    customer: "Customer Name",
+    key: String(order.id),
+    id: String(order.id),
+    orderNumber: `ORD-${String(order.id).slice(0, 8).toUpperCase()}`,
+    customer: order.userId || "Unknown",
     date: new Date(order.createdAt).toLocaleDateString(),
     total: order.total,
-    status: order.status,
-    paymentStatus: order.paymentStatus,
+    status: order.status || "pending",
+    paymentStatus: order.paymentStatus || "pending",
   }));
 
   return (
@@ -109,7 +153,12 @@ export default function AdminOrdersPage() {
           Manage Orders
         </Title>
 
-        <Table columns={columns} dataSource={tableData} />
+        <Table
+          columns={columns}
+          dataSource={tableData}
+          rowKey="id"
+          loading={isLoading}
+        />
       </div>
     </ProtectedRoute>
   );

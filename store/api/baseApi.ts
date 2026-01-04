@@ -11,10 +11,19 @@ const getAuthToken = (): string | null => {
 // Base query with token injection
 const baseQuery = fetchBaseQuery({
   baseUrl: API_BASE_URL,
-  prepareHeaders: (headers, { getState }) => {
-    const token = getAuthToken();
-    if (token) {
-      headers.set("authorization", `Bearer ${token}`);
+  prepareHeaders: (headers, { endpoint, type }) => {
+    // Check if this is an auth endpoint that shouldn't have token
+    // The endpoint name from RTK Query will be "login" or "register" for auth endpoints
+    const isAuthEndpoint = 
+      endpoint === "login" || 
+      endpoint === "register" ||
+      (typeof endpoint === "string" && endpoint.includes("auth"));
+    
+    if (!isAuthEndpoint) {
+      const token = getAuthToken();
+      if (token) {
+        headers.set("authorization", `Bearer ${token}`);
+      }
     }
     headers.set("Content-Type", "application/json");
     return headers;

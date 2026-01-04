@@ -1,33 +1,36 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Table, Button, Modal, Form, Input, InputNumber, Switch, App, Space, Typography, Popconfirm } from "antd";
+import { useState } from "react";
+import { Table, Button, Modal, Form, Input, InputNumber, Switch, App, Space, Typography, Popconfirm, Tag, Select } from "antd";
 import { PlusOutlined, EditOutlined, DeleteOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import ProtectedRoute from "@/components/common/ProtectedRoute";
 import { Role } from "@/lib/constants";
-import { dataService } from "@/lib/services/dataService";
+import {
+  useGetProductsAdminQuery,
+  useCreateProductMutation,
+  useUpdateProductMutation,
+  useDeleteProductMutation,
+  type ProductResponse,
+} from "@/store/api/productsApi";
+import { useGetCategoriesQuery } from "@/store/api/categoriesApi";
 import { formatCurrency } from "@/lib/utils/currency";
-import type { Product } from "@/lib/data";
 
 const { Title } = Typography;
 const { TextArea } = Input;
 
 export default function AdminProductsPage() {
   const { message } = App.useApp();
-  const [products, setProducts] = useState<Product[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [editingProduct, setEditingProduct] = useState<ProductResponse | null>(null);
   const [form] = Form.useForm();
 
-  useEffect(() => {
-    loadProducts();
-  }, []);
-
-  const loadProducts = () => {
-    const prods = dataService.getProducts();
-    setProducts(prods);
-  };
+  // API hooks
+  const { data: products = [], isLoading, refetch } = useGetProductsAdminQuery();
+  const { data: categories = [] } = useGetCategoriesQuery();
+  const [createProduct, { isLoading: isCreating }] = useCreateProductMutation();
+  const [updateProduct, { isLoading: isUpdating }] = useUpdateProductMutation();
+  const [deleteProduct, { isLoading: isDeleting }] = useDeleteProductMutation();
 
   const handleAdd = () => {
     setEditingProduct(null);
@@ -35,54 +38,121 @@ export default function AdminProductsPage() {
     setIsModalOpen(true);
   };
 
-  const handleEdit = (product: Product) => {
+  const handleEdit = (product: ProductResponse) => {
     setEditingProduct(product);
-    form.setFieldsValue(product);
+    form.setFieldsValue({
+      name: product.name,
+      description: product.description,
+      price: product.price,
+      discount_price: product.discount_price,
+      inventory_total: product.inventory_total,
+      sku: product.sku,
+      images: product.images?.join("\n") || "",
+      is_active: product.is_active !== false,
+      categoryId: product.categoryId,
+    });
     setIsModalOpen(true);
   };
 
-  const handleDelete = (id: string) => {
-    message.success("Product deleted (JSON mode - changes not persisted)");
-    loadProducts();
-  };
-
-  const handleSubmit = async (values: Partial<Product>) => {
+  const handleDelete = async (id: string | number) => {
     try {
-      if (editingProduct) {
-        message.success("Product updated (JSON mode - changes not persisted)");
-      } else {
-        message.success("Product created (JSON mode - changes not persisted)");
-      }
-      setIsModalOpen(false);
-      form.resetFields();
-      loadProducts();
-    } catch (error) {
-      message.error("Operation failed");
+      await deleteProduct(id).unwrap();
+      message.success("Product deleted successfully");
+      refetch();
+    } catch (error: any) {
+      const errorMessage = error?.data?.message || error?.message || "Failed to delete product";
+      message.error(errorMessage);
     }
   };
 
-  const columns: ColumnsType<Product> = [
+  const handleSubmit = async (values: any) => {
+    try {
+      // Parse images from newline-separated string
+      const images = values.images
+        ? values.images.split("\n").filter((img: string) => img.trim())
+        : [];
+
+      if (editingProduct) {
+        // Update product
+        await updateProduct({
+          id: editingProduct.id,
+          data: {
+            name: values.name,
+            description: values.description,
+            price: values.price,
+            discount_price: values.discount_price,
+            inventory_total: values.inventory_total,
+            sku: values.sku,
+            images: images,
+            is_active: values.is_active,
+            categoryId: values.categoryId,
+          },
+        }).unwrap();
+        message.success("Product updated successfully");
+      } else {
+        // Create product
+        await createProduct({
+          name: values.name,
+          description: values.description,
+          price: values.price,
+          discount_price: values.discount_price,
+          inventory_total: values.inventory_total,
+          sku: values.sku,
+          images: images,
+          is_active: values.is_active !== false,
+          categoryId: values.categoryId,
+        }).unwrap();
+        message.success("Product created successfully");
+      }
+      setIsModalOpen(false);
+      form.resetFields();
+      refetch();
+    } catch (error: any) {
+      const errorMessage = error?.data?.message || error?.message || "Operation failed";
+      message.error(errorMessage);
+    }
+  };
+
+  const columns: ColumnsType<ProductResponse> = [
     {
       title: "Name",
       dataIndex: "name",
       key: "name",
     },
     {
+      title: "SKU",
+      dataIndex: "sku",
+      key: "sku",
+    },
+    {
       title: "Price",
       dataIndex: "price",
       key: "price",
-      render: (price) => formatCurrency(price),
+      render: (price, record) => (
+        <div>
+          <div>{formatCurrency(price)}</div>
+          {record.discount_price && (
+            <div style={{ textDecoration: "line-through", color: "#999", fontSize: "12px" }}>
+              {formatCurrency(record.discount_price)}
+            </div>
+          )}
+        </div>
+      ),
     },
     {
       title: "Stock",
-      dataIndex: "stock",
-      key: "stock",
+      dataIndex: "inventory_total",
+      key: "inventory_total",
     },
     {
-      title: "Featured",
-      dataIndex: "featured",
-      key: "featured",
-      render: (featured) => (featured ? "Yes" : "No"),
+      title: "Status",
+      dataIndex: "is_active",
+      key: "is_active",
+      render: (isActive: boolean | undefined) => (
+        <Tag color={isActive !== false ? "green" : "red"}>
+          {isActive !== false ? "Active" : "Inactive"}
+        </Tag>
+      ),
     },
     {
       title: "Actions",
@@ -92,8 +162,12 @@ export default function AdminProductsPage() {
           <Button icon={<EditOutlined />} onClick={() => handleEdit(record)}>
             Edit
           </Button>
-          <Popconfirm title="Delete product?" onConfirm={() => handleDelete(record.id)}>
-            <Button danger icon={<DeleteOutlined />}>
+          <Popconfirm
+            title="Delete product?"
+            onConfirm={() => handleDelete(record.id)}
+            disabled={isDeleting}
+          >
+            <Button danger icon={<DeleteOutlined />} loading={isDeleting}>
               Delete
             </Button>
           </Popconfirm>
@@ -112,7 +186,12 @@ export default function AdminProductsPage() {
           </Button>
         </div>
 
-        <Table columns={columns} dataSource={products} rowKey="id" />
+        <Table
+          columns={columns}
+          dataSource={products}
+          rowKey="id"
+          loading={isLoading}
+        />
 
         <Modal
           title={editingProduct ? "Edit Product" : "Add Product"}
@@ -128,27 +207,47 @@ export default function AdminProductsPage() {
             <Form.Item name="name" label="Name" rules={[{ required: true }]}>
               <Input />
             </Form.Item>
-            <Form.Item name="description" label="Description">
+            <Form.Item name="description" label="Description" rules={[{ required: true }]}>
               <TextArea rows={4} />
+            </Form.Item>
+            <Form.Item name="sku" label="SKU">
+              <Input placeholder="Product SKU" />
             </Form.Item>
             <Form.Item name="price" label="Price" rules={[{ required: true }]}>
               <InputNumber min={0} step={0.01} style={{ width: "100%" }} />
             </Form.Item>
-            <Form.Item name="originalPrice" label="Original Price">
+            <Form.Item name="discount_price" label="Discount Price">
               <InputNumber min={0} step={0.01} style={{ width: "100%" }} />
             </Form.Item>
-            <Form.Item name="stock" label="Stock" rules={[{ required: true }]}>
+            <Form.Item name="inventory_total" label="Inventory Total" rules={[{ required: true }]}>
               <InputNumber min={0} style={{ width: "100%" }} />
             </Form.Item>
-            <Form.Item name="categoryId" label="Category ID" rules={[{ required: true }]}>
-              <Input />
+            <Form.Item name="categoryId" label="Category" rules={[{ required: true }]}>
+              <Select placeholder="Select category">
+                {categories.map((cat) => (
+                  <Select.Option key={cat.id} value={Number(cat.id)}>
+                    {cat.name}
+                  </Select.Option>
+                ))}
+              </Select>
             </Form.Item>
-            <Form.Item name="featured" label="Featured" valuePropName="checked">
+            <Form.Item
+              name="images"
+              label="Images (one URL per line)"
+              help="Enter image URLs, one per line"
+            >
+              <TextArea rows={3} placeholder="https://example.com/image1.jpg&#10;https://example.com/image2.jpg" />
+            </Form.Item>
+            <Form.Item name="is_active" label="Active" valuePropName="checked" initialValue={true}>
               <Switch />
             </Form.Item>
             <Form.Item>
               <Space>
-                <Button type="primary" htmlType="submit">
+                <Button
+                  type="primary"
+                  htmlType="submit"
+                  loading={isCreating || isUpdating}
+                >
                   {editingProduct ? "Update" : "Create"}
                 </Button>
                 <Button onClick={() => setIsModalOpen(false)}>Cancel</Button>

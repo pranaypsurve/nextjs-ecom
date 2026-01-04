@@ -1,69 +1,93 @@
 import { baseApi } from "./baseApi";
-import { ENDPOINTS, getEndpoint } from "@/lib/endpoints";
 import type { Product } from "@/lib/data";
 
-// Example API slice demonstrating reusable pattern
-// This pattern can be extended for all other entities
+// Product API request/response types
+export interface ProductResponse {
+  id: string | number;
+  name: string;
+  description: string;
+  price: number;
+  discount_price?: number;
+  inventory_total: number;
+  sku?: string;
+  images: string[];
+  is_active?: boolean;
+  categoryId: number;
+  createdAt?: string;
+  updatedAt?: string;
+  rating?: number;
+  reviews?: number;
+}
 
+export interface CreateProductRequest {
+  name: string;
+  description: string;
+  price: number;
+  discount_price?: number;
+  inventory_total: number;
+  sku?: string;
+  images?: string[];
+  is_active?: boolean;
+  categoryId: number;
+}
+
+export interface UpdateProductRequest {
+  name?: string;
+  description?: string;
+  price?: number;
+  discount_price?: number;
+  inventory_total?: number;
+  sku?: string;
+  images?: string[];
+  is_active?: boolean;
+  categoryId?: number;
+}
+
+// Products API slice
 export const productsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
-    // Get all products
-    getProducts: builder.query<
-      { products: Product[]; total: number },
-      { page?: number; limit?: number; categoryId?: string; search?: string }
-    >({
-      query: (params) => ({
-        url: getEndpoint(ENDPOINTS.PRODUCTS.LIST),
-        params,
-      }),
+    // Get all products (Public)
+    getProducts: builder.query<ProductResponse[], void>({
+      query: () => "/products",
       providesTags: ["Product"],
     }),
 
-    // Get product by ID
-    getProductById: builder.query<Product, string>({
-      query: (id) => getEndpoint(ENDPOINTS.PRODUCTS.DETAIL(id)),
+    // Get all products - Admin (Includes Inactive)
+    getProductsAdmin: builder.query<ProductResponse[], void>({
+      query: () => "/products/admin",
+      providesTags: ["Product"],
+    }),
+
+    // Get single product
+    getProductById: builder.query<ProductResponse, string | number>({
+      query: (id) => `/products/${id}`,
       providesTags: (result, error, id) => [{ type: "Product", id }],
     }),
 
-    // Get featured products
-    getFeaturedProducts: builder.query<Product[], void>({
-      query: () => getEndpoint(ENDPOINTS.PRODUCTS.FEATURED),
-      providesTags: ["Product"],
-    }),
-
-    // Search products
-    searchProducts: builder.query<Product[], string>({
-      query: (searchTerm) => ({
-        url: getEndpoint(ENDPOINTS.PRODUCTS.SEARCH),
-        params: { q: searchTerm },
-      }),
-      providesTags: ["Product"],
-    }),
-
-    // Create product (Admin only)
-    createProduct: builder.mutation<Product, Partial<Product>>({
+    // Create product (Admin Only)
+    createProduct: builder.mutation<ProductResponse, CreateProductRequest>({
       query: (body) => ({
-        url: getEndpoint(ENDPOINTS.PRODUCTS.LIST),
+        url: "/products",
         method: "POST",
         body,
       }),
       invalidatesTags: ["Product"],
     }),
 
-    // Update product (Admin only)
-    updateProduct: builder.mutation<Product, { id: string; data: Partial<Product> }>({
+    // Update product (Admin Only) - PATCH method
+    updateProduct: builder.mutation<ProductResponse, { id: string | number; data: UpdateProductRequest }>({
       query: ({ id, data }) => ({
-        url: getEndpoint(ENDPOINTS.PRODUCTS.DETAIL(id)),
-        method: "PUT",
+        url: `/products/${id}`,
+        method: "PATCH",
         body: data,
       }),
       invalidatesTags: (result, error, { id }) => [{ type: "Product", id }, "Product"],
     }),
 
-    // Delete product (Admin only)
-    deleteProduct: builder.mutation<void, string>({
+    // Delete product (Admin Only)
+    deleteProduct: builder.mutation<void, string | number>({
       query: (id) => ({
-        url: getEndpoint(ENDPOINTS.PRODUCTS.DETAIL(id)),
+        url: `/products/${id}`,
         method: "DELETE",
       }),
       invalidatesTags: ["Product"],
@@ -74,9 +98,8 @@ export const productsApi = baseApi.injectEndpoints({
 // Export hooks for usage in functional components
 export const {
   useGetProductsQuery,
+  useGetProductsAdminQuery,
   useGetProductByIdQuery,
-  useGetFeaturedProductsQuery,
-  useSearchProductsQuery,
   useCreateProductMutation,
   useUpdateProductMutation,
   useDeleteProductMutation,

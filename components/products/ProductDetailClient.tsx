@@ -1,21 +1,46 @@
 "use client";
 
 import { useState } from "react";
-import { Row, Col, Card, Button, Typography, InputNumber, Space, Tag, Divider, Image as AntImage, App } from "antd";
+import { Row, Col, Card, Button, Typography, InputNumber, Space, Tag, Divider, Image as AntImage, App, Spin, Empty } from "antd";
 import { ShoppingCartOutlined, CheckOutlined } from "@ant-design/icons";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { useAppDispatch } from "@/store/hooks";
 import { addToCart, openCart } from "@/store/slices/cartSlice";
+import { useGetProductByIdQuery } from "@/store/api/productsApi";
 import { formatCurrency } from "@/lib/utils/currency";
 import type { Product } from "@/lib/data";
 
 const { Title, Text, Paragraph } = Typography;
 
 interface ProductDetailClientProps {
-  product: Product;
+  productId: string;
 }
 
-export default function ProductDetailClient({ product }: ProductDetailClientProps) {
+export default function ProductDetailClient({ productId }: ProductDetailClientProps) {
+  const router = useRouter();
+  const { data: apiProduct, isLoading, error } = useGetProductByIdQuery(productId);
+
+  // Transform API product to match Product interface
+  // API: price = original, discount_price = discounted
+  // Product: price = current (discounted if available), originalPrice = original
+  const product: Product | null = apiProduct
+    ? {
+        id: String(apiProduct.id),
+        name: apiProduct.name,
+        description: apiProduct.description,
+        price: apiProduct.discount_price || apiProduct.price, // Use discount_price if available, else original price
+        originalPrice: apiProduct.discount_price ? apiProduct.price : undefined, // Original price only if there's a discount
+        images: apiProduct.images || [],
+        categoryId: String(apiProduct.categoryId),
+        stock: apiProduct.inventory_total,
+        featured: false,
+        rating: apiProduct.rating,
+        reviews: apiProduct.reviews,
+        createdAt: apiProduct.createdAt || new Date().toISOString(),
+        updatedAt: apiProduct.updatedAt || new Date().toISOString(),
+      }
+    : null;
   const dispatch = useAppDispatch();
   const { message } = App.useApp();
   const [quantity, setQuantity] = useState(1);
@@ -26,6 +51,28 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
     dispatch(openCart());
     message.success("Product added to cart!");
   };
+
+  if (isLoading) {
+    return (
+      <div style={{ padding: "24px", maxWidth: "1200px", margin: "0 auto", minHeight: "calc(100vh - 64px)" }}>
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "400px" }}>
+          <Spin size="large" />
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !product) {
+    return (
+      <div style={{ padding: "24px", maxWidth: "1200px", margin: "0 auto", minHeight: "calc(100vh - 64px)" }}>
+        <Empty description="Product not found">
+          <Button type="primary" onClick={() => router.push("/products")}>
+            Back to Products
+          </Button>
+        </Empty>
+      </div>
+    );
+  }
 
   const discount =
     product.originalPrice && product.originalPrice > product.price
@@ -42,7 +89,7 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
               <div style={{ width: "100%", height: "500px", position: "relative", background: "#f5f5f5" }}>
                 {product.images.length > 0 ? (
                   <Image
-                    src={product.images[selectedImageIndex] || "/placeholder.jpg"}
+                    src="https://plus.unsplash.com/premium_photo-1682091872078-46c5ed6a006d?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
                     alt={product.name}
                     fill
                     style={{ objectFit: "contain" }}
@@ -74,7 +121,7 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
                     }}
                   >
                     <Image
-                      src={image}
+                      src="https://plus.unsplash.com/premium_photo-1682091872078-46c5ed6a006d?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
                       alt={`${product.name} view ${index + 1}`}
                       fill
                       style={{ objectFit: "contain" }}
@@ -127,7 +174,7 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
             <Divider />
 
             <div style={{ marginBottom: "24px" }}>
-              <Space direction="vertical" size="middle" style={{ width: "100%" }}>
+              <Space orientation="vertical" size="middle" style={{ width: "100%" }}>
                 <div>
                   <Text strong style={{ display: "block", marginBottom: "8px" }}>
                     Quantity:
@@ -164,7 +211,7 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
 
             <div>
               <Title level={5}>Product Information</Title>
-              <Space direction="vertical" size="small">
+              <Space orientation="vertical" size="small">
                 <Text>
                   <strong>SKU:</strong> {product.id}
                 </Text>

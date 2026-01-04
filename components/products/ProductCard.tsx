@@ -31,7 +31,7 @@ export default function ProductCard({ product, onAddToCart }: ProductCardProps) 
           >
             {product.images.length > 0 ? (
               <Image
-                src={product.images[0]}
+                src="https://plus.unsplash.com/premium_photo-1682091872078-46c5ed6a006d?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
                 alt={product.name}
                 fill
                 style={{ objectFit: "contain" }}

@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { Table, Tag, Button, Typography, Empty, Card } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import Link from "next/link";
 import ProtectedRoute from "@/components/common/ProtectedRoute";
-import { useAppSelector } from "@/store/hooks";
+import { useGetMyOrdersQuery } from "@/store/api/ordersApi";
 import { formatCurrency } from "@/lib/utils/currency";
 import type { Order } from "@/lib/data";
 
@@ -22,15 +21,8 @@ interface OrderTableItem {
 }
 
 export default function OrdersPage() {
-  const { user } = useAppSelector((state) => state.auth);
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    // Load orders from localStorage or JSON
-    // For now, using empty array as orders are created during checkout
-    setLoading(false);
-  }, []);
+  // Get user's orders from API
+  const { data: orders = [], isLoading: loading } = useGetMyOrdersQuery();
 
   const columns: ColumnsType<OrderTableItem> = [
     {
@@ -57,6 +49,9 @@ export default function OrdersPage() {
       dataIndex: "status",
       key: "status",
       render: (status: string) => {
+        if (!status) {
+          return <Tag color="default">N/A</Tag>;
+        }
         const colorMap: Record<string, string> = {
           pending: "orange",
           confirmed: "blue",
@@ -73,6 +68,9 @@ export default function OrdersPage() {
       dataIndex: "paymentStatus",
       key: "paymentStatus",
       render: (status: string) => {
+        if (!status) {
+          return <Tag color="default">N/A</Tag>;
+        }
         const colorMap: Record<string, string> = {
           pending: "orange",
           paid: "green",
@@ -94,13 +92,13 @@ export default function OrdersPage() {
   ];
 
   const tableData: OrderTableItem[] = orders.map((order) => ({
-    key: order.id,
-    id: order.id,
-    orderNumber: `ORD-${order.id.slice(0, 8).toUpperCase()}`,
+    key: String(order.id),
+    id: String(order.id),
+    orderNumber: `ORD-${String(order.id).slice(0, 8).toUpperCase()}`,
     date: new Date(order.createdAt).toLocaleDateString(),
     total: order.total,
-    status: order.status,
-    paymentStatus: order.paymentStatus,
+    status: order.status || "pending",
+    paymentStatus: order.paymentStatus || "pending",
   }));
 
   return (

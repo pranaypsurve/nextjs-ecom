@@ -1,31 +1,32 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Table, Button, Modal, Form, Input, App, Space, Typography, Popconfirm } from "antd";
+import { useState } from "react";
+import { Table, Button, Modal, Form, Input, Switch, App, Space, Typography, Popconfirm, Tag } from "antd";
 import { PlusOutlined, EditOutlined, DeleteOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import ProtectedRoute from "@/components/common/ProtectedRoute";
 import { Role } from "@/lib/constants";
-import { dataService } from "@/lib/services/dataService";
-import type { Category } from "@/lib/data";
+import {
+  useGetCategoriesAdminQuery,
+  useCreateCategoryMutation,
+  useUpdateCategoryMutation,
+  useDeleteCategoryMutation,
+  type CategoryResponse,
+} from "@/store/api/categoriesApi";
 
 const { Title } = Typography;
 
 export default function AdminCategoriesPage() {
   const { message } = App.useApp();
-  const [categories, setCategories] = useState<Category[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [editingCategory, setEditingCategory] = useState<CategoryResponse | null>(null);
   const [form] = Form.useForm();
 
-  useEffect(() => {
-    loadCategories();
-  }, []);
-
-  const loadCategories = () => {
-    const cats = dataService.getCategories();
-    setCategories(cats);
-  };
+  // API hooks
+  const { data: categories = [], isLoading, refetch } = useGetCategoriesAdminQuery();
+  const [createCategory, { isLoading: isCreating }] = useCreateCategoryMutation();
+  const [updateCategory, { isLoading: isUpdating }] = useUpdateCategoryMutation();
+  const [deleteCategory, { isLoading: isDeleting }] = useDeleteCategoryMutation();
 
   const handleAdd = () => {
     setEditingCategory(null);
@@ -33,35 +34,62 @@ export default function AdminCategoriesPage() {
     setIsModalOpen(true);
   };
 
-  const handleEdit = (category: Category) => {
+  const handleEdit = (category: CategoryResponse) => {
     setEditingCategory(category);
-    form.setFieldsValue(category);
+    form.setFieldsValue({
+      name: category.name,
+      description: category.description,
+      image: category.image,
+      is_active: category.is_active !== false, // Default to true if not set
+    });
     setIsModalOpen(true);
   };
 
-  const handleDelete = (id: string) => {
-    // In real app, call API
-    message.success("Category deleted (JSON mode - changes not persisted)");
-    loadCategories();
-  };
-
-  const handleSubmit = async (values: Partial<Category>) => {
+  const handleDelete = async (id: string | number) => {
     try {
-      // In real app, call API
-      if (editingCategory) {
-        message.success("Category updated (JSON mode - changes not persisted)");
-      } else {
-        message.success("Category created (JSON mode - changes not persisted)");
-      }
-      setIsModalOpen(false);
-      form.resetFields();
-      loadCategories();
-    } catch (error) {
-      message.error("Operation failed");
+      await deleteCategory(id).unwrap();
+      message.success("Category deleted successfully");
+      refetch();
+    } catch (error: any) {
+      const errorMessage = error?.data?.message || error?.message || "Failed to delete category";
+      message.error(errorMessage);
     }
   };
 
-  const columns: ColumnsType<Category> = [
+  const handleSubmit = async (values: any) => {
+    try {
+      if (editingCategory) {
+        // Update category
+        await updateCategory({
+          id: editingCategory.id,
+          data: {
+            name: values.name,
+            description: values.description,
+            image: values.image,
+            is_active: values.is_active,
+          },
+        }).unwrap();
+        message.success("Category updated successfully");
+      } else {
+        // Create category
+        await createCategory({
+          name: values.name,
+          description: values.description,
+          image: values.image,
+          is_active: values.is_active !== false,
+        }).unwrap();
+        message.success("Category created successfully");
+      }
+      setIsModalOpen(false);
+      form.resetFields();
+      refetch();
+    } catch (error: any) {
+      const errorMessage = error?.data?.message || error?.message || "Operation failed";
+      message.error(errorMessage);
+    }
+  };
+
+  const columns: ColumnsType<CategoryResponse> = [
     {
       title: "Name",
       dataIndex: "name",
@@ -78,6 +106,16 @@ export default function AdminCategoriesPage() {
       key: "description",
     },
     {
+      title: "Status",
+      dataIndex: "is_active",
+      key: "is_active",
+      render: (isActive: boolean | undefined) => (
+        <Tag color={isActive !== false ? "green" : "red"}>
+          {isActive !== false ? "Active" : "Inactive"}
+        </Tag>
+      ),
+    },
+    {
       title: "Actions",
       key: "actions",
       render: (_, record) => (
@@ -88,8 +126,9 @@ export default function AdminCategoriesPage() {
           <Popconfirm
             title="Delete category?"
             onConfirm={() => handleDelete(record.id)}
+            disabled={isDeleting}
           >
-            <Button danger icon={<DeleteOutlined />}>
+            <Button danger icon={<DeleteOutlined />} loading={isDeleting}>
               Delete
             </Button>
           </Popconfirm>
@@ -108,7 +147,12 @@ export default function AdminCategoriesPage() {
           </Button>
         </div>
 
-        <Table columns={columns} dataSource={categories} rowKey="id" />
+        <Table
+          columns={columns}
+          dataSource={categories}
+          rowKey="id"
+          loading={isLoading}
+        />
 
         <Modal
           title={editingCategory ? "Edit Category" : "Add Category"}
@@ -123,15 +167,22 @@ export default function AdminCategoriesPage() {
             <Form.Item name="name" label="Name" rules={[{ required: true }]}>
               <Input />
             </Form.Item>
-            <Form.Item name="slug" label="Slug" rules={[{ required: true }]}>
-              <Input />
-            </Form.Item>
             <Form.Item name="description" label="Description">
-              <Input.TextArea />
+              <Input.TextArea rows={4} />
+            </Form.Item>
+            <Form.Item name="image" label="Image URL">
+              <Input placeholder="https://example.com/image.jpg" />
+            </Form.Item>
+            <Form.Item name="is_active" label="Active" valuePropName="checked" initialValue={true}>
+              <Switch />
             </Form.Item>
             <Form.Item>
               <Space>
-                <Button type="primary" htmlType="submit">
+                <Button
+                  type="primary"
+                  htmlType="submit"
+                  loading={isCreating || isUpdating}
+                >
                   {editingCategory ? "Update" : "Create"}
                 </Button>
                 <Button onClick={() => setIsModalOpen(false)}>Cancel</Button>

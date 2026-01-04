@@ -30,12 +30,14 @@ export default function Header() {
   const dispatch = useAppDispatch();
   const { user, isAuthenticated } = useAppSelector((state) => state.auth);
   const { items } = useAppSelector((state) => state.cart);
-  const [cartItemCount, setCartItemCount] = useState(0);
+  const [mounted, setMounted] = useState(false);
+
+  // Calculate cart count directly from items
+  const cartItemCount = items.reduce((sum, item) => sum + item.quantity, 0);
 
   useEffect(() => {
-    const count = items.reduce((sum, item) => sum + item.quantity, 0);
-    setCartItemCount(count);
-  }, [items]);
+    setMounted(true);
+  }, []);
 
   const handleLogout = () => {
     dispatch(logout());
@@ -100,7 +102,12 @@ export default function Header() {
     {
       key: "orders",
       icon: <FileTextOutlined />,
-      label: <Link href="/admin/orders">Manage Orders</Link>,
+      label: <Link href="/admin/orders">Order Management</Link>,
+    },
+    {
+      key: "users",
+      icon: <UserOutlined />,
+      label: <Link href="/admin/users">User Management</Link>,
     },
     {
       key: "coupons",
@@ -154,7 +161,7 @@ export default function Header() {
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-          {isAuthenticated && (
+          {mounted && isAuthenticated && (
             <>
               <Badge count={cartItemCount} size="small">
                 <span>
@@ -180,7 +187,7 @@ export default function Header() {
             </>
           )}
 
-          {!isAuthenticated && (
+          {mounted && !isAuthenticated && (
             <>
               <Link href="/login">
                 <Button type="text">Login</Button>

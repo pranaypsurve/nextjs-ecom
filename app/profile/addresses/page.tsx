@@ -63,7 +63,7 @@ export default function AddressesPage() {
             </Empty>
           </Card>
         ) : (
-          <Space direction="vertical" size="large" style={{ width: "100%" }}>
+          <Space orientation="vertical" size="large" style={{ width: "100%" }}>
             {addresses.map((address) => (
               <Card
                 key={address.id}

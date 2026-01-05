@@ -1,4 +1,5 @@
 import { baseApi } from "./baseApi";
+import { ENDPOINTS } from "@/lib/endpoints";
 
 // Gift Voucher API request/response types
 export interface GiftVoucherResponse {
@@ -47,26 +48,26 @@ export const giftVouchersApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     // Get All Gift Vouchers (Admin Only)
     getGiftVouchers: builder.query<GiftVoucherResponse[], void>({
-      query: () => "/gift-vouchers",
+      query: () => ENDPOINTS.GIFT_VOUCHERS.LIST,
       providesTags: ["GiftCard"],
     }),
 
     // Get Gift Voucher by Code (Authenticated)
     getGiftVoucherByCode: builder.query<GiftVoucherResponse, string>({
-      query: (code) => `/gift-vouchers/code/${code}`,
+      query: (code) => ENDPOINTS.GIFT_VOUCHERS.BY_CODE(code),
       providesTags: (result, error, code) => [{ type: "GiftCard", id: code }],
     }),
 
     // Get Single Gift Voucher (Admin Only)
     getGiftVoucherById: builder.query<GiftVoucherResponse, string | number>({
-      query: (id) => `/gift-vouchers/${id}`,
+      query: (id) => ENDPOINTS.GIFT_VOUCHERS.DETAIL(id),
       providesTags: (result, error, id) => [{ type: "GiftCard", id }],
     }),
 
     // Create Gift Voucher (Admin Only)
     createGiftVoucher: builder.mutation<GiftVoucherResponse, CreateGiftVoucherRequest>({
       query: (body) => ({
-        url: "/gift-vouchers",
+        url: ENDPOINTS.GIFT_VOUCHERS.CREATE,
         method: "POST",
         body,
       }),
@@ -76,7 +77,7 @@ export const giftVouchersApi = baseApi.injectEndpoints({
     // Update Gift Voucher (Admin Only) - PATCH method
     updateGiftVoucher: builder.mutation<GiftVoucherResponse, { id: string | number; data: UpdateGiftVoucherRequest }>({
       query: ({ id, data }) => ({
-        url: `/gift-vouchers/${id}`,
+        url: ENDPOINTS.GIFT_VOUCHERS.UPDATE(id),
         method: "PATCH",
         body: data,
       }),
@@ -86,7 +87,7 @@ export const giftVouchersApi = baseApi.injectEndpoints({
     // Delete Gift Voucher (Admin Only)
     deleteGiftVoucher: builder.mutation<void, string | number>({
       query: (id) => ({
-        url: `/gift-vouchers/${id}`,
+        url: ENDPOINTS.GIFT_VOUCHERS.DELETE(id),
         method: "DELETE",
       }),
       invalidatesTags: ["GiftCard"],

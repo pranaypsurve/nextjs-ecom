@@ -1,5 +1,6 @@
 import { baseApi } from "./baseApi";
 import type { Order } from "@/lib/data";
+import { ENDPOINTS } from "@/lib/endpoints";
 
 // Order placement request types
 export interface OrderItem {
@@ -34,7 +35,7 @@ export const ordersApi = baseApi.injectEndpoints({
     // Create Order (Authenticated)
     placeOrder: builder.mutation<PlaceOrderResponse, PlaceOrderRequest>({
       query: (body) => ({
-        url: "/orders",
+        url: ENDPOINTS.ORDERS.CREATE,
         method: "POST",
         body,
       }),
@@ -43,26 +44,26 @@ export const ordersApi = baseApi.injectEndpoints({
 
     // Get All Orders (Authenticated - Users see own, Admin sees all)
     getOrders: builder.query<Order[], void>({
-      query: () => "/orders",
+      query: () => ENDPOINTS.ORDERS.LIST,
       providesTags: ["Order"],
     }),
 
     // Get My Orders (Authenticated)
     getMyOrders: builder.query<Order[], void>({
-      query: () => "/orders/my-orders",
+      query: () => ENDPOINTS.ORDERS.MY_ORDERS,
       providesTags: ["Order"],
     }),
 
     // Get Single Order (Authenticated)
     getOrderById: builder.query<Order, string | number>({
-      query: (id) => `/orders/${id}`,
+      query: (id) => ENDPOINTS.ORDERS.DETAIL(id),
       providesTags: (result, error, id) => [{ type: "Order", id }],
     }),
 
     // Update Order (Admin Only)
     updateOrder: builder.mutation<Order, { id: string | number; data: UpdateOrderRequest }>({
       query: ({ id, data }) => ({
-        url: `/orders/${id}`,
+        url: ENDPOINTS.ORDERS.UPDATE(id),
         method: "PATCH",
         body: data,
       }),
@@ -72,7 +73,7 @@ export const ordersApi = baseApi.injectEndpoints({
     // Delete Order (Admin Only)
     deleteOrder: builder.mutation<void, string | number>({
       query: (id) => ({
-        url: `/orders/${id}`,
+        url: ENDPOINTS.ORDERS.DELETE(id),
         method: "DELETE",
       }),
       invalidatesTags: ["Order"],

@@ -36,12 +36,13 @@ export default function RegisterPage() {
       }).unwrap();
 
       // Validate response structure
-      if (!result.user || !result.token) {
+      if (!result.user) {
         message.error("Invalid response from server");
         return;
       }
 
-      // Role comes directly from the database
+      // Tokens are stored in httpOnly cookies by backend
+      // We only need to store user data in Redux
       const userRole = result.user.role as Role;
 
       dispatch(
@@ -53,7 +54,6 @@ export default function RegisterPage() {
             role: userRole,
             phone: result.user.phone || "",
           },
-          token: result.token,
         })
       );
 

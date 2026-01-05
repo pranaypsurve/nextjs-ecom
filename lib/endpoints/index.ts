@@ -10,13 +10,18 @@ export const ENDPOINTS = {
     REGISTER: "/auth/register",
     LOGOUT: "/auth/logout",
     REFRESH: "/auth/refresh",
+    ME: "/auth/me",
     PROFILE: "/auth/profile",
   },
 
   // Products
   PRODUCTS: {
     LIST: "/products",
+    LIST_ADMIN: "/products/admin",
     DETAIL: (id: string | number) => `/products/${id}`,
+    CREATE: "/products",
+    UPDATE: (id: string | number) => `/products/${id}`,
+    DELETE: (id: string | number) => `/products/${id}`,
     SEARCH: "/products/search",
     FEATURED: "/products/featured",
     BY_CATEGORY: (categoryId: string | number) => `/products/category/${categoryId}`,
@@ -25,6 +30,7 @@ export const ENDPOINTS = {
   // Categories
   CATEGORIES: {
     LIST: "/categories",
+    LIST_ADMIN: "/categories/admin",
     DETAIL: (id: string | number) => `/categories/${id}`,
     CREATE: "/categories",
     UPDATE: (id: string | number) => `/categories/${id}`,
@@ -43,9 +49,11 @@ export const ENDPOINTS = {
   // Orders
   ORDERS: {
     LIST: "/orders",
+    MY_ORDERS: "/orders/my-orders",
     DETAIL: (id: string | number) => `/orders/${id}`,
     CREATE: "/orders",
     UPDATE: (id: string | number) => `/orders/${id}`,
+    DELETE: (id: string | number) => `/orders/${id}`,
     TRACK: (id: string | number) => `/orders/${id}/track`,
     CANCEL: (id: string | number) => `/orders/${id}/cancel`,
   },
@@ -53,6 +61,8 @@ export const ENDPOINTS = {
   // Users
   USERS: {
     LIST: "/users",
+    ME: "/users/me",
+    ME_PASSWORD: "/users/me/password",
     DETAIL: (id: string | number) => `/users/${id}`,
     UPDATE: (id: string | number) => `/users/${id}`,
     DELETE: (id: string | number) => `/users/${id}`,
@@ -80,12 +90,24 @@ export const ENDPOINTS = {
   // Coupons
   COUPONS: {
     LIST: "/coupons",
+    LIST_ADMIN: "/coupons/admin",
+    BY_CODE: (code: string) => `/coupons/code/${code}`,
     DETAIL: (id: string | number) => `/coupons/${id}`,
     CREATE: "/coupons",
     UPDATE: (id: string | number) => `/coupons/${id}`,
     DELETE: (id: string | number) => `/coupons/${id}`,
     APPLY: "/coupons/apply",
     VALIDATE: "/coupons/validate",
+  },
+
+  // Gift Vouchers
+  GIFT_VOUCHERS: {
+    LIST: "/gift-vouchers",
+    BY_CODE: (code: string) => `/gift-vouchers/code/${code}`,
+    DETAIL: (id: string | number) => `/gift-vouchers/${id}`,
+    CREATE: "/gift-vouchers",
+    UPDATE: (id: string | number) => `/gift-vouchers/${id}`,
+    DELETE: (id: string | number) => `/gift-vouchers/${id}`,
   },
 
   // Notifications

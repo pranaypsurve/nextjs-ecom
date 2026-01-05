@@ -8,6 +8,7 @@ export enum Role {
 }
 
 // API Configuration
+// Next.js automatically loads .env files, just use process.env directly
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001";
 
 // Route Permissions
@@ -48,9 +49,10 @@ export const COLORS = {
 export const DEFAULT_PAGE_SIZE = 12;
 
 // Local Storage Keys
+// Note: With Redux Persist, data is stored under "persist:root" key
+// Tokens are stored in httpOnly cookies by backend, not in localStorage
 export const STORAGE_KEYS = {
-  TOKEN: "auth_token",
-  USER: "user_data",
+  USER: "user_data", // Only user data is persisted, tokens are in cookies
 } as const;
 
 // Currency Configuration

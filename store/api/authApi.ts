@@ -1,5 +1,6 @@
 import { baseApi } from "./baseApi";
 import type { Role } from "@/lib/constants";
+import { ENDPOINTS } from "@/lib/endpoints";
 
 // Auth API response types
 export interface LoginRequest {
@@ -10,7 +11,7 @@ export interface LoginRequest {
 export interface LoginResponse {
   status: boolean;
   message: string;
-  accessToken: string;
+  // Tokens are stored in httpOnly cookies by backend
   data: {
     id: number;
     email: string;
@@ -28,7 +29,7 @@ export interface RegisterRequest {
 }
 
 export interface RegisterResponse {
-  token: string;
+  // Tokens are stored in httpOnly cookies by backend
   user: {
     id: string;
     email: string;
@@ -44,7 +45,7 @@ export const authApi = baseApi.injectEndpoints({
     // Login mutation
     login: builder.mutation<LoginResponse, LoginRequest>({
       query: (credentials) => ({
-        url: "/auth/login",
+        url: ENDPOINTS.AUTH.LOGIN,
         method: "POST",
         body: credentials,
       }),
@@ -53,7 +54,7 @@ export const authApi = baseApi.injectEndpoints({
     // Register mutation
     register: builder.mutation<RegisterResponse, RegisterRequest>({
       query: (userData) => ({
-        url: "/auth/register",
+        url: ENDPOINTS.AUTH.REGISTER,
         method: "POST",
         body: userData,
       }),
@@ -62,21 +63,22 @@ export const authApi = baseApi.injectEndpoints({
     // Logout mutation
     logout: builder.mutation<void, void>({
       query: () => ({
-        url: "/auth/logout",
+        url: ENDPOINTS.AUTH.LOGOUT,
         method: "POST",
       }),
     }),
 
     // Get current user
     getCurrentUser: builder.query<LoginResponse["data"], void>({
-      query: () => "/auth/me",
+      query: () => ENDPOINTS.AUTH.ME,
       providesTags: ["User"],
     }),
 
-    // Refresh token
-    refreshToken: builder.mutation<{ token: string }, void>({
+    // Refresh token - handled automatically by baseApi on 401
+    // This endpoint is called internally, not exposed as a hook
+    refreshToken: builder.mutation<void, void>({
       query: () => ({
-        url: "/auth/refresh",
+        url: ENDPOINTS.AUTH.REFRESH,
         method: "POST",
       }),
     }),

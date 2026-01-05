@@ -1,4 +1,5 @@
 import { baseApi } from "./baseApi";
+import { ENDPOINTS } from "@/lib/endpoints";
 
 // Coupon API request/response types
 export interface CouponResponse {
@@ -56,32 +57,32 @@ export const couponsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     // Get All Coupons (Public - Active Only)
     getCoupons: builder.query<CouponResponse[], void>({
-      query: () => "/coupons",
+      query: () => ENDPOINTS.COUPONS.LIST,
       providesTags: ["Coupon"],
     }),
 
     // Get All Coupons - Admin (Includes Inactive)
     getCouponsAdmin: builder.query<CouponResponse[], void>({
-      query: () => "/coupons/admin",
+      query: () => ENDPOINTS.COUPONS.LIST_ADMIN,
       providesTags: ["Coupon"],
     }),
 
     // Get Coupon by Code (Public)
     getCouponByCode: builder.query<CouponResponse, string>({
-      query: (code) => `/coupons/code/${code}`,
+      query: (code) => ENDPOINTS.COUPONS.BY_CODE(code),
       providesTags: (result, error, code) => [{ type: "Coupon", id: code }],
     }),
 
     // Get Single Coupon
     getCouponById: builder.query<CouponResponse, string | number>({
-      query: (id) => `/coupons/${id}`,
+      query: (id) => ENDPOINTS.COUPONS.DETAIL(id),
       providesTags: (result, error, id) => [{ type: "Coupon", id }],
     }),
 
     // Create Coupon (Admin Only)
     createCoupon: builder.mutation<CouponResponse, CreateCouponRequest>({
       query: (body) => ({
-        url: "/coupons",
+        url: ENDPOINTS.COUPONS.CREATE,
         method: "POST",
         body,
       }),
@@ -91,7 +92,7 @@ export const couponsApi = baseApi.injectEndpoints({
     // Update Coupon (Admin Only) - PATCH method
     updateCoupon: builder.mutation<CouponResponse, { id: string | number; data: UpdateCouponRequest }>({
       query: ({ id, data }) => ({
-        url: `/coupons/${id}`,
+        url: ENDPOINTS.COUPONS.UPDATE(id),
         method: "PATCH",
         body: data,
       }),
@@ -101,7 +102,7 @@ export const couponsApi = baseApi.injectEndpoints({
     // Delete Coupon (Admin Only)
     deleteCoupon: builder.mutation<void, string | number>({
       query: (id) => ({
-        url: `/coupons/${id}`,
+        url: ENDPOINTS.COUPONS.DELETE(id),
         method: "DELETE",
       }),
       invalidatesTags: ["Coupon"],

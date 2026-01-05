@@ -13,7 +13,7 @@ const { Title } = Typography;
 export default function ProfilePage() {
   const { message } = App.useApp();
   const dispatch = useAppDispatch();
-  const { user, token } = useAppSelector((state) => state.auth);
+  const { user } = useAppSelector((state) => state.auth);
   const [form] = Form.useForm();
   const [passwordForm] = Form.useForm();
   
@@ -50,12 +50,10 @@ export default function ProfilePage() {
       }).unwrap();
       
       // Update Redux store with new user data
-
-      console.log('user',user,result);
-      if (user && token) {
+      console.log('user', user, result);
+      if (user) {
         dispatch(setCredentials({
           user: { ...user, ...result },
-          token: token, // Keep existing token
         }));
       }
       

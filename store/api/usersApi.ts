@@ -1,6 +1,7 @@
 import { baseApi } from "./baseApi";
 import type { User } from "@/store/slices/authSlice";
 import { Role } from "@/lib/constants";
+import { ENDPOINTS } from "@/lib/endpoints";
 
 // User API request/response types
 export interface UserResponse extends User {
@@ -34,26 +35,26 @@ export const usersApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     // Get My Profile (Authenticated)
     getMyProfile: builder.query<UserResponse, void>({
-      query: () => "/users/me",
+      query: () => ENDPOINTS.USERS.ME,
       providesTags: ["User"],
     }),
 
     // Get All Users (Admin Only)
     getUsers: builder.query<UserResponse[], void>({
-      query: () => "/users",
+      query: () => ENDPOINTS.USERS.LIST,
       providesTags: ["User"],
     }),
 
     // Get Single User (Admin or Own Profile)
     getUserById: builder.query<UserResponse, string | number>({
-      query: (id) => `/users/${id}`,
+      query: (id) => ENDPOINTS.USERS.DETAIL(id),
       providesTags: (result, error, id) => [{ type: "User", id }],
     }),
 
     // Update User Profile (Authenticated - Own Profile)
     updateMyProfile: builder.mutation<UserResponse, UpdateUserProfileRequest>({
       query: (body) => ({
-        url: "/users/me",
+        url: ENDPOINTS.USERS.ME,
         method: "PATCH",
         body,
       }),
@@ -63,7 +64,7 @@ export const usersApi = baseApi.injectEndpoints({
     // Update User (Admin Only)
     updateUser: builder.mutation<UserResponse, { id: string | number; data: UpdateUserRequest }>({
       query: ({ id, data }) => ({
-        url: `/users/${id}`,
+        url: ENDPOINTS.USERS.UPDATE(id),
         method: "PATCH",
         body: data,
       }),
@@ -73,7 +74,7 @@ export const usersApi = baseApi.injectEndpoints({
     // Delete User (Admin Only)
     deleteUser: builder.mutation<void, string | number>({
       query: (id) => ({
-        url: `/users/${id}`,
+        url: ENDPOINTS.USERS.DELETE(id),
         method: "DELETE",
       }),
       invalidatesTags: ["User"],
@@ -82,7 +83,7 @@ export const usersApi = baseApi.injectEndpoints({
     // Change Password (Authenticated)
     changePassword: builder.mutation<{ message: string }, ChangePasswordRequest>({
       query: (body) => ({
-        url: "/users/me/password",
+        url: ENDPOINTS.USERS.ME_PASSWORD,
         method: "PATCH",
         body,
       }),

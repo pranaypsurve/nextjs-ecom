@@ -20,19 +20,14 @@ export const buildQueryParams = (params: Record<string, any>): string => {
 
 /**
  * Get authentication headers
- * @param token Authentication token
+ * Note: Tokens are stored in httpOnly cookies, so no manual token handling needed
  * @returns Headers object
  */
-export const getAuthHeaders = (token: string | null): HeadersInit => {
-  const headers: HeadersInit = {
+export const getAuthHeaders = (): HeadersInit => {
+  return {
     "Content-Type": "application/json",
   };
-  
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
-  
-  return headers;
+  // Cookies are sent automatically by the browser
 };
 
 /**

@@ -1,5 +1,6 @@
 import { baseApi } from "./baseApi";
 import type { Product } from "@/lib/data";
+import { ENDPOINTS } from "@/lib/endpoints";
 
 // Product API request/response types
 export interface ProductResponse {
@@ -48,26 +49,26 @@ export const productsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     // Get all products (Public)
     getProducts: builder.query<ProductResponse[], void>({
-      query: () => "/products",
+      query: () => ENDPOINTS.PRODUCTS.LIST,
       providesTags: ["Product"],
     }),
 
     // Get all products - Admin (Includes Inactive)
     getProductsAdmin: builder.query<ProductResponse[], void>({
-      query: () => "/products/admin",
+      query: () => ENDPOINTS.PRODUCTS.LIST_ADMIN,
       providesTags: ["Product"],
     }),
 
     // Get single product
     getProductById: builder.query<ProductResponse, string | number>({
-      query: (id) => `/products/${id}`,
+      query: (id) => ENDPOINTS.PRODUCTS.DETAIL(id),
       providesTags: (result, error, id) => [{ type: "Product", id }],
     }),
 
     // Create product (Admin Only)
     createProduct: builder.mutation<ProductResponse, CreateProductRequest>({
       query: (body) => ({
-        url: "/products",
+        url: ENDPOINTS.PRODUCTS.CREATE,
         method: "POST",
         body,
       }),
@@ -77,7 +78,7 @@ export const productsApi = baseApi.injectEndpoints({
     // Update product (Admin Only) - PATCH method
     updateProduct: builder.mutation<ProductResponse, { id: string | number; data: UpdateProductRequest }>({
       query: ({ id, data }) => ({
-        url: `/products/${id}`,
+        url: ENDPOINTS.PRODUCTS.UPDATE(id),
         method: "PATCH",
         body: data,
       }),
@@ -87,7 +88,7 @@ export const productsApi = baseApi.injectEndpoints({
     // Delete product (Admin Only)
     deleteProduct: builder.mutation<void, string | number>({
       query: (id) => ({
-        url: `/products/${id}`,
+        url: ENDPOINTS.PRODUCTS.DELETE(id),
         method: "DELETE",
       }),
       invalidatesTags: ["Product"],

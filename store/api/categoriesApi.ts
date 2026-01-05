@@ -1,5 +1,6 @@
 import { baseApi } from "./baseApi";
 import type { Category } from "@/lib/data";
+import { ENDPOINTS } from "@/lib/endpoints";
 
 // Category API request/response types
 export interface CategoryResponse extends Category {
@@ -25,26 +26,26 @@ export const categoriesApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     // Get all categories (Public)
     getCategories: builder.query<CategoryResponse[], void>({
-      query: () => "/categories",
+      query: () => ENDPOINTS.CATEGORIES.LIST,
       providesTags: ["Category"],
     }),
 
     // Get all categories - Admin (Includes Inactive)
     getCategoriesAdmin: builder.query<CategoryResponse[], void>({
-      query: () => "/categories/admin",
+      query: () => ENDPOINTS.CATEGORIES.LIST_ADMIN,
       providesTags: ["Category"],
     }),
 
     // Get single category
     getCategoryById: builder.query<CategoryResponse, string | number>({
-      query: (id) => `/categories/${id}`,
+      query: (id) => ENDPOINTS.CATEGORIES.DETAIL(id),
       providesTags: (result, error, id) => [{ type: "Category", id }],
     }),
 
     // Create category (Admin Only)
     createCategory: builder.mutation<CategoryResponse, CreateCategoryRequest>({
       query: (body) => ({
-        url: "/categories",
+        url: ENDPOINTS.CATEGORIES.CREATE,
         method: "POST",
         body,
       }),
@@ -54,7 +55,7 @@ export const categoriesApi = baseApi.injectEndpoints({
     // Update category (Admin Only) - PATCH method
     updateCategory: builder.mutation<CategoryResponse, { id: string | number; data: UpdateCategoryRequest }>({
       query: ({ id, data }) => ({
-        url: `/categories/${id}`,
+        url: ENDPOINTS.CATEGORIES.UPDATE(id),
         method: "PATCH",
         body: data,
       }),
@@ -64,7 +65,7 @@ export const categoriesApi = baseApi.injectEndpoints({
     // Delete category (Admin Only)
     deleteCategory: builder.mutation<void, string | number>({
       query: (id) => ({
-        url: `/categories/${id}`,
+        url: ENDPOINTS.CATEGORIES.DELETE(id),
         method: "DELETE",
       }),
       invalidatesTags: ["Category"],

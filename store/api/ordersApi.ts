@@ -8,11 +8,24 @@ export interface OrderItem {
   quantity: number;
 }
 
+export interface ShippingAddress {
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string;
+  street_address: string;
+  city: string;
+  state: string;
+  zip_code: string;
+  country: string;
+}
+
 export interface PlaceOrderRequest {
   items: OrderItem[];
   couponId?: number;
   shipping_cost?: number;
-  shipping_address?: string;
+  shipping_address?: string | ShippingAddress;
+  save_address?: boolean;
   notes?: string;
 }
 

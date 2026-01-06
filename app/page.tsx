@@ -2,14 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { Row, Col, Card, Button, Typography, Spin } from "antd";
-import { ShoppingCartOutlined } from "@ant-design/icons";
 import Link from "next/link";
-import Image from "next/image";
 import { useAppDispatch } from "@/store/hooks";
 import { addToCart } from "@/store/slices/cartSlice";
 import { useGetProductsQuery } from "@/store/api/productsApi";
 import { useGetCategoriesQuery } from "@/store/api/categoriesApi";
-import { formatCurrency } from "@/lib/utils/currency";
+import ProductCard from "@/components/products/ProductCard";
 import type { Product } from "@/lib/data";
 
 const { Title, Text, Paragraph } = Typography;
@@ -110,8 +108,8 @@ export default function Home() {
       </section>
 
       {/* Featured Products Section */}
-      <section style={{ padding: "60px 24px", background: "#fff", maxWidth: "1200px", margin: "0 auto" }}>
-        <Title level={2} style={{ textAlign: "center", marginBottom: "40px" }}>
+      <section style={{ padding: "60px 24px", background: "#fff", maxWidth: "1400px", margin: "0 auto" }}>
+        <Title level={2} style={{ textAlign: "center", marginBottom: "40px", fontSize: 36, fontWeight: 700 }}>
           Featured Products
         </Title>
         {(loading || categoriesLoading) ? (
@@ -122,68 +120,16 @@ export default function Home() {
           <Row gutter={[24, 24]}>
             {featuredProducts.map((product) => (
               <Col xs={24} sm={12} md={8} lg={6} key={product.id}>
-                <Card
-                  hoverable
-                  cover={
-                    <div
-                      style={{
-                        height: "250px",
-                        background: "#f5f5f5",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        position: "relative",
-                      }}
-                    >
-                      <Text style={{ fontSize: "48px" }}>📦</Text>
-                    </div>
-                  }
-                  actions={[
-                    <Button
-                      type="primary"
-                      icon={<ShoppingCartOutlined />}
-                      onClick={() => handleAddToCart(product)}
-                      block
-                    >
-                      Add to Cart
-                    </Button>,
-                  ]}
-                >
-                  <Link href={`/products/${product.id}`}>
-                    <Meta
-                      title={product.name}
-                      description={
-                        <div>
-                          <Text strong style={{ color: "var(--color-primary)", fontSize: "18px" }}>
-                            {formatCurrency(product.price)}
-                          </Text>
-                          {product.originalPrice && (
-                            <Text
-                              delete
-                              type="secondary"
-                              style={{ marginLeft: "8px", fontSize: "14px" }}
-                            >
-                              {formatCurrency(product.originalPrice)}
-                            </Text>
-                          )}
-                          <Paragraph
-                            ellipsis={{ rows: 2 }}
-                            style={{ marginTop: "8px", marginBottom: 0, color: "#666" }}
-                          >
-                            {product.description}
-                          </Paragraph>
-                        </div>
-                      }
-                    />
-                  </Link>
-                </Card>
+                <ProductCard product={product} onAddToCart={handleAddToCart} />
               </Col>
             ))}
           </Row>
         )}
         <div style={{ textAlign: "center", marginTop: "40px" }}>
           <Link href="/products">
-            <Button size="large">View All Products</Button>
+            <Button size="large" type="primary" style={{ borderRadius: 8, height: 44, fontSize: 16 }}>
+              View All Products
+            </Button>
           </Link>
         </div>
       </section>

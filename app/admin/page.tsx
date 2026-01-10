@@ -108,7 +108,7 @@ export default function AdminDashboard() {
       inactiveUsers,
       newUsersToday,
       totalCategories: categories.length,
-      activeCategories: categories.filter((c) => c.status === "active").length,
+      activeCategories: categories.filter((c) => c.is_active !== false).length,
       totalCoupons: coupons.length,
       activeCoupons,
       expiredCoupons,

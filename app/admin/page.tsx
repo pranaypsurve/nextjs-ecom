@@ -23,7 +23,7 @@ import Link from "next/link";
 import { useGetOrdersQuery } from "@/store/api/ordersApi";
 import { useGetProductsAdminQuery } from "@/store/api/productsApi";
 import { useGetUsersQuery } from "@/store/api/usersApi";
-import { useGetCategoriesAdminQuery } from "@/store/api/categoriesApi";
+import { useGetCategoriesAdminQuery, type CategoryResponse } from "@/store/api/categoriesApi";
 import { useGetCouponsAdminQuery } from "@/store/api/couponsApi";
 import { useGetGiftVouchersQuery } from "@/store/api/giftVouchersApi";
 import dayjs from "dayjs";
@@ -38,7 +38,7 @@ export default function AdminDashboard() {
   const { data: orders = [], isLoading: ordersLoading } = useGetOrdersQuery();
   const { data: products = [], isLoading: productsLoading } = useGetProductsAdminQuery();
   const { data: users = [], isLoading: usersLoading } = useGetUsersQuery();
-  const { data: categories = [], isLoading: categoriesLoading } = useGetCategoriesAdminQuery();
+  const { data: categories = [] as CategoryResponse[], isLoading: categoriesLoading } = useGetCategoriesAdminQuery();
   const { data: coupons = [], isLoading: couponsLoading } = useGetCouponsAdminQuery();
   const { data: giftVouchers = [], isLoading: giftVouchersLoading } = useGetGiftVouchersQuery();
 
@@ -108,7 +108,7 @@ export default function AdminDashboard() {
       inactiveUsers,
       newUsersToday,
       totalCategories: categories.length,
-      activeCategories: categories.filter((c) => c.is_active !== false).length,
+      activeCategories: categories.filter((c: CategoryResponse) => c.is_active !== false).length,
       totalCoupons: coupons.length,
       activeCoupons,
       expiredCoupons,

@@ -19,6 +19,7 @@ export const ENDPOINTS = {
     LIST: "/products",
     LIST_ADMIN: "/products/admin",
     DETAIL: (id: string | number) => `/products/${id}`,
+    BY_SLUG: (slug: string) => `/products/slug/${slug}`,
     CREATE: "/products",
     UPDATE: (id: string | number) => `/products/${id}`,
     DELETE: (id: string | number) => `/products/${id}`,
@@ -68,14 +69,15 @@ export const ENDPOINTS = {
     DELETE: (id: string | number) => `/users/${id}`,
   },
 
-  // Addresses
-  ADDRESSES: {
-    LIST: "/addresses",
-    DETAIL: (id: string | number) => `/addresses/${id}`,
-    CREATE: "/addresses",
-    UPDATE: (id: string | number) => `/addresses/${id}`,
-    DELETE: (id: string | number) => `/addresses/${id}`,
-    SET_DEFAULT: (id: string | number) => `/addresses/${id}/default`,
+  // Shipping Addresses
+  SHIPPING_ADDRESSES: {
+    LIST: "/shipping-addresses",
+    DETAIL: (id: string | number) => `/shipping-addresses/${id}`,
+    CREATE: "/shipping-addresses",
+    UPDATE: (id: string | number) => `/shipping-addresses/${id}`,
+    DELETE: (id: string | number) => `/shipping-addresses/${id}`,
+    SET_DEFAULT: (id: string | number) => `/shipping-addresses/${id}/set-default`,
+    GET_DEFAULT: "/shipping-addresses/default",
   },
 
   // Payments

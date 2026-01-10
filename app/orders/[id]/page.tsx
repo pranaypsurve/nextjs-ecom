@@ -80,12 +80,13 @@ export default function OrderDetailPage() {
 
     const status = order.status || "pending";
     const orderDate = dayjs((order as any).created_at || order.createdAt);
+    const updatedDate = (order as any).updated_at ? dayjs((order as any).updated_at) : null;
 
     const items = [
       {
-        color: status === "pending" ? "gold" : "green",
-        dot: status === "pending" ? <ClockCircleOutlined /> : <CheckCircleOutlined />,
-        children: (
+        color: "green",
+        dot: <CheckCircleOutlined />,
+        content: (
           <div>
             <Text strong style={{ display: "block", fontSize: 15 }}>
               Order Placed
@@ -98,17 +99,19 @@ export default function OrderDetailPage() {
       },
     ];
 
-    if (status !== "pending") {
+    if (["confirmed", "processing", "shipped", "delivered"].includes(status)) {
       items.push({
         color: ["shipped", "delivered"].includes(status) ? "green" : "blue",
         dot: <CheckCircleOutlined />,
-        children: (
+        content: (
           <div>
             <Text strong style={{ display: "block", fontSize: 15 }}>
               Order Confirmed
             </Text>
             <Text type="secondary" style={{ fontSize: 12 }}>
-              Your order has been confirmed
+              {status === "confirmed" && updatedDate
+                ? `Confirmed on ${updatedDate.format("MMM DD, YYYY [at] hh:mm A")}`
+                : "Your order has been confirmed"}
             </Text>
           </div>
         ),
@@ -118,14 +121,14 @@ export default function OrderDetailPage() {
     if (["processing", "shipped", "delivered"].includes(status)) {
       items.push({
         color: ["shipped", "delivered"].includes(status) ? "green" : "blue",
-        dot: <CheckCircleOutlined />,
-        children: (
+        dot: <ShoppingOutlined />,
+        content: (
           <div>
             <Text strong style={{ display: "block", fontSize: 15 }}>
               Processing
             </Text>
             <Text type="secondary" style={{ fontSize: 12 }}>
-              Your order is being prepared
+              Your order is being prepared for shipment
             </Text>
           </div>
         ),
@@ -136,18 +139,20 @@ export default function OrderDetailPage() {
       items.push({
         color: status === "delivered" ? "green" : "blue",
         dot: <TruckOutlined />,
-        children: (
+        content: (
           <div>
             <Text strong style={{ display: "block", fontSize: 15 }}>
               Shipped
             </Text>
             {(order as any).trackingNumber && (
               <Text type="secondary" style={{ fontSize: 12, display: "block" }}>
-                Tracking: {(order as any).trackingNumber}
+                Tracking: <Text strong style={{ fontFamily: "monospace" }}>{(order as any).trackingNumber}</Text>
               </Text>
             )}
             <Text type="secondary" style={{ fontSize: 12 }}>
-              Your order is on the way
+              {status === "shipped" && updatedDate
+                ? `Shipped on ${updatedDate.format("MMM DD, YYYY [at] hh:mm A")}`
+                : "Your order is on the way"}
             </Text>
           </div>
         ),
@@ -158,13 +163,15 @@ export default function OrderDetailPage() {
       items.push({
         color: "green",
         dot: <CheckCircleOutlined />,
-        children: (
+        content: (
           <div>
-            <Text strong style={{ display: "block", fontSize: 15 }}>
+            <Text strong style={{ display: "block", fontSize: 15, color: "#52c41a" }}>
               Delivered
             </Text>
             <Text type="secondary" style={{ fontSize: 12 }}>
-              Your order has been delivered
+              {updatedDate
+                ? `Delivered on ${updatedDate.format("MMMM DD, YYYY [at] hh:mm A")}`
+                : "Your order has been successfully delivered"}
             </Text>
           </div>
         ),
@@ -379,7 +386,7 @@ export default function OrderDetailPage() {
                   Placed on {orderDate.format("MMMM DD, YYYY [at] hh:mm A")}
                 </Text>
               </div>
-              <Space direction="vertical" align="end" size="middle">
+              <Space orientation="vertical" align="end" size="middle">
                 <Tag
                   className="status-badge"
                   style={{
@@ -440,20 +447,25 @@ export default function OrderDetailPage() {
                     orderItems.map((item: any, index: number) => {
                       const product = item.product || {};
                       const productName = product.name || "Product";
-                      const productPrice = parseFloat(product.discount_price || product.price || item.discount || item.price || 0);
+                      const productSku = product.sku || "";
+                      // Use price from orderItem first (as it was at time of order), then fallback to product
+                      const itemPrice = parseFloat(item.price || product.price || product.discount_price || 0);
                       const quantity = item.quantity || 1;
-                      const itemTotal = parseFloat(item.total || productPrice * quantity);
+                      const itemTotal = parseFloat(item.total || itemPrice * quantity);
+                      // Use thumbnail first, then image, then first image from images array
+                      const productImage = product.thumbnail || product.image || product.images?.[0] || "";
 
                       return (
                         <div key={index} className="order-item-card">
                           <div className="item-image" style={{ position: "relative" }}>
-                            {product.images?.[0] ? (
+                            {productImage ? (
                               <Image
-                                src={product.images[0]}
+                                src={productImage}
                                 alt={productName}
                                 width={100}
                                 height={100}
                                 style={{ objectFit: "cover", borderRadius: 12 }}
+                                fallback="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2YwZjBmMCIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LXNpemU9IjEyIiBmaWxsPSIjOTk5IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+Tm8gSW1hZ2U8L3RleHQ+PC9zdmc+"
                               />
                             ) : (
                               <div
@@ -462,33 +474,38 @@ export default function OrderDetailPage() {
                                   alignItems: "center",
                                   justifyContent: "center",
                                   height: "100%",
-                                  fontSize: 40,
+                                  width: "100%",
+                                  background: "linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)",
+                                  borderRadius: 12,
                                 }}
                               >
-                                📦
+                                <ShoppingOutlined style={{ fontSize: 40, color: "#bfbfbf" }} />
                               </div>
                             )}
                           </div>
                           <div style={{ flex: 1, minWidth: 0 }}>
-                            <Title level={5} style={{ margin: 0, marginBottom: 8 }}>
+                            <Title level={5} style={{ margin: 0, marginBottom: 4 }}>
                               {productName}
                             </Title>
-                            {product.description && (
-                              <Text type="secondary" style={{ fontSize: 13, display: "block", marginBottom: 8 }}>
-                                {product.description}
+                            {productSku && (
+                              <Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 8 }}>
+                                SKU: {productSku}
                               </Text>
                             )}
-                            <Space size="middle" wrap>
+                            <Space size="middle" wrap style={{ marginTop: 8 }}>
+                              <Tag color="blue" style={{ borderRadius: 6 }}>
+                                Qty: {quantity}
+                              </Tag>
                               <Text type="secondary" style={{ fontSize: 13 }}>
-                                Quantity: <Text strong>{quantity}</Text>
-                              </Text>
-                              <Text type="secondary" style={{ fontSize: 13 }}>
-                                Price: <Text strong>{formatCurrency(productPrice)}</Text>
+                                Unit Price: <Text strong>{formatCurrency(itemPrice)}</Text>
                               </Text>
                             </Space>
                           </div>
-                          <div style={{ textAlign: "right" }}>
-                            <Text strong style={{ fontSize: 18, color: "#667eea", display: "block" }}>
+                          <div style={{ textAlign: "right", minWidth: 120 }}>
+                            <Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 4 }}>
+                              Item Total
+                            </Text>
+                            <Text strong style={{ fontSize: 20, color: "#667eea", display: "block", fontWeight: 700 }}>
                               {formatCurrency(itemTotal)}
                             </Text>
                           </div>
@@ -553,6 +570,44 @@ export default function OrderDetailPage() {
                 </div>
               )}
 
+              {/* Billing Address */}
+              {(order as any).billing_address && !(order as any).billing_same_as_shipping && (
+                <div className="section-card" style={{ marginBottom: 24 }}>
+                  <div className="section-header">
+                    <Title level={4} style={{ margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
+                      <FileTextOutlined /> Billing Address
+                    </Title>
+                  </div>
+                  <div className="section-body">
+                    <div className="address-card">
+                      <Text strong style={{ display: "block", fontSize: 15, marginBottom: 12 }}>
+                        {(order as any).billing_address.first_name || (order as any).billing_address.firstName || ""}{" "}
+                        {(order as any).billing_address.last_name || (order as any).billing_address.lastName || ""}
+                      </Text>
+                      <Paragraph style={{ margin: 0, fontSize: 14 }}>
+                        {(order as any).billing_address.street_address || (order as any).billing_address.street || ""}
+                        <br />
+                        {(order as any).billing_address.city || ""}, {(order as any).billing_address.state || ""}{" "}
+                        {(order as any).billing_address.zip_code || (order as any).billing_address.zipCode || ""}
+                        <br />
+                        {(order as any).billing_address.country || ""}
+                        <br />
+                        <br />
+                        <Space>
+                          <PhoneOutlined />
+                          <Text>{(order as any).billing_address.phone || "N/A"}</Text>
+                        </Space>
+                        <br />
+                        <Space>
+                          <MailOutlined />
+                          <Text>{(order as any).billing_address.email || "N/A"}</Text>
+                        </Space>
+                      </Paragraph>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Order Summary */}
               <div className="section-card">
                 <div className="section-header">
@@ -562,12 +617,19 @@ export default function OrderDetailPage() {
                 </div>
                 <div className="section-body">
                   <div className="summary-row">
-                    <Text>Subtotal</Text>
-                    <Text>{formatCurrency(typeof order.subtotal === 'string' ? parseFloat(order.subtotal) : (order.subtotal || 0))}</Text>
+                    <Text>Subtotal ({orderItems.length} item{orderItems.length !== 1 ? "s" : ""})</Text>
+                    <Text strong>{formatCurrency(typeof order.subtotal === 'string' ? parseFloat(order.subtotal) : (order.subtotal || 0))}</Text>
                   </div>
                   {order.discount && parseFloat(String(order.discount)) > 0 && (
                     <div className="summary-row">
-                      <Text type="success">Discount</Text>
+                      <Space>
+                        {(order as any).coupon && (
+                          <Tag color="green" style={{ borderRadius: 6 }}>
+                            {(order as any).coupon.code || "Coupon Applied"}
+                          </Tag>
+                        )}
+                        <Text type="success">Discount</Text>
+                      </Space>
                       <Text type="success" strong>
                         -{formatCurrency(typeof order.discount === 'string' ? parseFloat(order.discount) : order.discount)}
                       </Text>

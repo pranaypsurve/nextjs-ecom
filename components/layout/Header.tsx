@@ -227,7 +227,7 @@ export default function Header() {
             icon: <LockOutlined />,
             label: <Link href="/profile/change-password" onClick={() => setMobileMenuOpen(false)}>Change Password</Link>,
           },
-          ...(user?.role === Role.ADMIN
+          ...(user && user.role === Role.ADMIN
             ? [
                 {
                   type: "divider" as const,
@@ -372,7 +372,7 @@ export default function Header() {
                 {/* Desktop Admin & User Menus */}
                 {!isMobile && (
                   <>
-                    {user?.role === Role.ADMIN && (
+                    {user && user.role === Role.ADMIN && (
                       <Dropdown menu={{ items: adminMenuItems }} placement="bottomRight">
                         <Button type="text" icon={<DashboardOutlined />}>
                           Admin
@@ -432,7 +432,7 @@ export default function Header() {
           placement="right"
           onClose={() => setMobileMenuOpen(false)}
           open={mobileMenuOpen}
-          width={280}
+          size={280}
           styles={{
             body: { padding: 0 },
           }}

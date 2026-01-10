@@ -1,10 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Row,
   Col,
-  Card,
   Button,
   Typography,
   InputNumber,
@@ -17,11 +16,17 @@ import {
   Rate,
   Badge,
   Breadcrumb,
+  Card,
+  Tabs,
+  Collapse,
+  Timeline,
+  Statistic,
+  Avatar,
+  Progress,
 } from "antd";
 import {
   ShoppingCartOutlined,
   CheckOutlined,
-  HomeOutlined,
   ArrowLeftOutlined,
   StarFilled,
   FireOutlined,
@@ -29,6 +34,16 @@ import {
   TruckOutlined,
   ReloadOutlined,
   HeartOutlined,
+  HeartFilled,
+  ShareAltOutlined,
+  TagOutlined,
+  DollarOutlined,
+  ShopOutlined,
+  CrownOutlined,
+  ThunderboltOutlined,
+  EnvironmentOutlined,
+  FileTextOutlined,
+  HomeOutlined,
 } from "@ant-design/icons";
 import Image from "next/image";
 import Link from "next/link";
@@ -37,7 +52,6 @@ import { useAppDispatch } from "@/store/hooks";
 import { addToCart, openCart } from "@/store/slices/cartSlice";
 import { useGetProductByIdQuery } from "@/store/api/productsApi";
 import { formatCurrency } from "@/lib/utils/currency";
-import type { Product } from "@/lib/data";
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -47,180 +61,295 @@ interface ProductDetailClientProps {
 
 export default function ProductDetailClient({ productId }: ProductDetailClientProps) {
   const router = useRouter();
-  const { data: apiProduct, isLoading, error } = useGetProductByIdQuery(productId);
-
-  // Transform API product to match Product interface
-  // API: price = original, discount_price = discounted
-  // Product: price = current (discounted if available), originalPrice = original
-  const product: Product | null = apiProduct
-    ? {
-        id: String(apiProduct.id),
-        name: apiProduct.name,
-        description: apiProduct.description,
-        price: apiProduct.discount_price || apiProduct.price, // Use discount_price if available, else original price
-        originalPrice: apiProduct.discount_price ? apiProduct.price : undefined, // Original price only if there's a discount
-        images: apiProduct.images || [],
-        categoryId: String(apiProduct.categoryId),
-        stock: apiProduct.inventory_total,
-        featured: false,
-        rating: apiProduct.rating,
-        reviews: apiProduct.reviews,
-        createdAt: apiProduct.createdAt || new Date().toISOString(),
-        updatedAt: apiProduct.updatedAt || new Date().toISOString(),
-      }
-    : null;
   const dispatch = useAppDispatch();
   const { message } = App.useApp();
+
+  // Fetch product data
+  const { data: product, isLoading, error } = useGetProductByIdQuery(productId);
+
+  // State management
   const [quantity, setQuantity] = useState(1);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [isWishlisted, setIsWishlisted] = useState(false);
 
+  // Calculate values
+  const isOutOfStock = product ? product.inventory === 0 : false;
+  const hasDiscount = product ? product.discount_price && product.discount_price < product.price : false;
+  const discountPercent = hasDiscount && product
+    ? Math.round(((product.price - product.discount_price!) / product.price) * 100)
+    : 0;
+  const displayPrice = product ? (product.discount_price || product.price) : 0;
+  const originalPrice = hasDiscount && product ? product.price : null;
+  const rating = product?.average_rating || 0;
+  const reviews = product?.review_count || 0;
+  const totalSold = product?.total_sold || 0;
+  const isLowStock = product ? product.inventory < product.low_stock_threshold : false;
+
+  // Images handling
+  const productImages = useMemo(() => {
+    if (!product) return [];
+    const images = [];
+    if (product.image) images.push(product.image);
+    if (product.thumbnail && product.thumbnail !== product.image) images.push(product.thumbnail);
+    return images.length > 0 ? images : [];
+  }, [product]);
+
+  const selectedImage = productImages[selectedImageIndex] || productImages[0];
+
+  // Handle add to cart
   const handleAddToCart = () => {
     if (!product) return;
-    dispatch(addToCart({ product, quantity }));
+
+    if (isOutOfStock) {
+      message.warning("This product is out of stock");
+      return;
+    }
+
+    if (quantity > product.inventory) {
+      message.warning(`Only ${product.inventory} items available`);
+      return;
+    }
+
+    dispatch(
+      addToCart({
+        variantId: String(product.id),
+        quantity,
+        price: displayPrice,
+        productName: product.name,
+        productImage: selectedImage || "",
+      })
+    );
     dispatch(openCart());
     message.success("Product added to cart!");
   };
 
+  // Handle buy now - add to cart and redirect to checkout
+  const handleBuyNow = () => {
+    if (!product) return;
+
+    if (isOutOfStock) {
+      message.warning("This product is out of stock");
+      return;
+    }
+
+    if (quantity > product.inventory) {
+      message.warning(`Only ${product.inventory} items available`);
+      return;
+    }
+
+    // Add to cart
+    dispatch(
+      addToCart({
+        variantId: String(product.id),
+        quantity,
+        price: displayPrice,
+        productName: product.name,
+        productImage: selectedImage || "",
+      })
+    );
+    
+    // Show success message
+    message.success("Redirecting to checkout...");
+    
+    // Redirect to checkout after a brief delay
+    setTimeout(() => {
+      router.push("/checkout");
+    }, 500);
+  };
+
+  // Loading state
   if (isLoading) {
     return (
-      <div className="product-detail-page">
-        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "400px" }}>
-          <Spin size="large" />
-        </div>
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "60vh" }}>
+        <Spin size="large" />
       </div>
     );
   }
 
+  // Error state
   if (error || !product) {
     return (
-      <div className="product-detail-page">
-        <div style={{ padding: "60px 24px", textAlign: "center" }}>
-          <Empty description="Product not found">
-            <Button type="primary" icon={<ArrowLeftOutlined />} onClick={() => router.push("/products")}>
-              Back to Products
-            </Button>
-          </Empty>
-        </div>
+      <div style={{ padding: "80px 24px", textAlign: "center", background: "#f5f5f5", minHeight: "60vh" }}>
+        <Empty
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+          description={
+            <div>
+              <Title level={4}>Product not found</Title>
+              <Text type="secondary">The product you're looking for doesn't exist or has been removed</Text>
+            </div>
+          }
+        >
+          <Button type="primary" size="large" icon={<ArrowLeftOutlined />} onClick={() => router.push("/products")}>
+            Back to Products
+          </Button>
+        </Empty>
       </div>
     );
   }
 
-  const discount =
-    product.originalPrice && product.originalPrice > product.price
-      ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
-      : 0;
-  const hasDiscount = discount > 0;
-  const isOutOfStock = product.stock === 0;
-  const rating = product.rating || 0;
-  const reviews = product.reviews || 0;
-  const selectedImage = product.images[selectedImageIndex] || product.images[0];
+  // Mock reviews data (replace with real data when available)
+  const mockReviews = [
+    { id: 1, name: "John Doe", rating: 5, comment: "Excellent product! Highly recommended.", date: "2 days ago", avatar: "JD" },
+    { id: 2, name: "Jane Smith", rating: 4, comment: "Good quality, fast delivery.", date: "1 week ago", avatar: "JS" },
+    { id: 3, name: "Mike Johnson", rating: 5, comment: "Amazing! Exactly as described.", date: "2 weeks ago", avatar: "MJ" },
+  ];
 
   return (
     <div className="product-detail-page">
-      <style jsx>{`
+      <style jsx global>{`
         .product-detail-page {
           min-height: calc(100vh - 64px);
-          background: linear-gradient(to bottom, #f8f9fa 0%, #ffffff 100%);
+          background: #f5f5f5;
         }
+
         .breadcrumb-section {
           background: white;
           padding: 16px 0;
           border-bottom: 1px solid #e8e8e8;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
         }
+
         .breadcrumb-container {
           max-width: 1400px;
           margin: 0 auto;
           padding: 0 24px;
         }
+
         .content-wrapper {
           max-width: 1400px;
           margin: 0 auto;
-          padding: 40px 24px;
+          padding: 32px 24px;
         }
-        .image-gallery {
+
+        .image-gallery-section {
+          background: white;
+          padding: 24px;
+          border-radius: 16px;
+          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
           position: sticky;
           top: 80px;
         }
-        .main-image {
+
+        .main-image-container {
           width: 100%;
-          height: 600px;
+          height: 500px;
           position: relative;
           background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
           border-radius: 16px;
-          overflow: "hidden";
+          overflow: hidden;
           margin-bottom: 16px;
-          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
         }
-        .thumbnail-list {
-          display: flex;
+
+        .thumbnail-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
           gap: 12px;
-          flex-wrap: wrap;
         }
+
         .thumbnail {
-          width: 90px;
-          height: 90px;
+          width: 100%;
+          aspect-ratio: 1;
           border-radius: 12px;
           overflow: hidden;
           cursor: pointer;
           position: relative;
           background: #f5f5f5;
           border: 3px solid transparent;
-          transition: all 0.3s;
+          transition: all 0.3s ease;
         }
+
         .thumbnail.active {
-          border-color: var(--color-primary);
-          box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+          border-color: #667eea;
+          box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
         }
+
         .thumbnail:hover {
           transform: scale(1.05);
+          border-color: #667eea;
         }
-        .product-info {
+
+        .product-info-card {
           background: white;
           padding: 32px;
           border-radius: 16px;
           box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+          margin-bottom: 24px;
         }
-        .price-section {
+
+        .price-badge {
           background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
           color: white;
           padding: 24px;
           border-radius: 12px;
           margin: 24px 0;
         }
-        .trust-badges {
-          display: flex;
+
+        .feature-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
           gap: 16px;
-          flex-wrap: wrap;
-          margin-top: 24px;
+          margin: 24px 0;
         }
-        .trust-badge {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 12px 16px;
+
+        .feature-card {
+          text-align: center;
+          padding: 20px;
           background: #f8f9fa;
-          border-radius: 8px;
+          border-radius: 12px;
           border: 1px solid #e8e8e8;
+          transition: all 0.3s ease;
         }
-        .action-buttons {
-          display: flex;
-          gap: 12px;
-          margin-top: 24px;
-        }
-        .info-section {
+
+        .feature-card:hover {
           background: white;
+          border-color: #667eea;
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+        }
+
+        .action-section {
+          background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
           padding: 24px;
           border-radius: 12px;
-          margin-top: 24px;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+          border: 2px dashed #e8e8e8;
+          margin: 24px 0;
         }
+
+        .info-tabs {
+          background: white;
+          padding: 24px;
+          border-radius: 16px;
+          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+          margin-top: 32px;
+        }
+
+        .review-card {
+          padding: 16px;
+          background: #f8f9fa;
+          border-radius: 12px;
+          margin-bottom: 12px;
+          border-left: 4px solid #667eea;
+        }
+
+        .rating-bar {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          margin-bottom: 8px;
+        }
+
         @media (max-width: 768px) {
-          .image-gallery {
+          .image-gallery-section {
             position: relative;
             top: 0;
           }
-          .main-image {
-            height: 400px;
+
+          .main-image-container {
+            height: 350px;
+          }
+
+          .feature-grid {
+            grid-template-columns: repeat(2, 1fr);
           }
         }
       `}</style>
@@ -230,8 +359,15 @@ export default function ProductDetailClient({ productId }: ProductDetailClientPr
         <div className="breadcrumb-container">
           <Breadcrumb
             items={[
-              { title: <Link href="/">Home</Link> },
+              { title: <Link href="/"><HomeOutlined /> Home</Link> },
               { title: <Link href="/products">Products</Link> },
+              {
+                title: product.category?.name ? (
+                  <Link href={`/products?category=${product.categoryId}`}>{product.category.name}</Link>
+                ) : (
+                  "Product"
+                ),
+              },
               { title: product.name },
             ]}
           />
@@ -239,18 +375,19 @@ export default function ProductDetailClient({ productId }: ProductDetailClientPr
       </div>
 
       <div className="content-wrapper">
-        <Row gutter={[48, 48]}>
-          {/* Product Images */}
-          <Col xs={24} lg={12}>
-            <div className="image-gallery">
-              <div className="main-image">
+        <Row gutter={[32, 32]}>
+          {/* Left Column - Images */}
+          <Col xs={24} lg={10}>
+            <div className="image-gallery-section">
+              {/* Main Image */}
+              <div className="main-image-container">
                 {selectedImage ? (
                   <Image
                     src={selectedImage}
                     alt={product.name}
                     fill
-                    style={{ objectFit: "contain" }}
-                    sizes="(max-width: 768px) 100vw, 50vw"
+                    style={{ objectFit: "contain", padding: 20 }}
+                    sizes="(max-width: 768px) 100vw, 40vw"
                     priority
                   />
                 ) : (
@@ -266,25 +403,44 @@ export default function ProductDetailClient({ productId }: ProductDetailClientPr
                     📦
                   </div>
                 )}
+                
+                {/* Badges on Image */}
                 {hasDiscount && (
                   <Badge
-                    count={`-${discount}%`}
+                    count={`-${discountPercent}%`}
                     style={{
                       backgroundColor: "#ff4d4f",
                       position: "absolute",
                       top: 20,
                       right: 20,
-                      fontSize: 18,
+                      fontSize: 20,
                       fontWeight: "bold",
                       padding: "8px 16px",
+                      boxShadow: "0 4px 12px rgba(255,77,79,0.3)",
                     }}
                   />
                 )}
+                {product.is_featured && (
+                  <Tag
+                    color="gold"
+                    icon={<CrownOutlined />}
+                    style={{
+                      position: "absolute",
+                      top: 20,
+                      left: 20,
+                      fontSize: 14,
+                      padding: "6px 12px",
+                    }}
+                  >
+                    FEATURED
+                  </Tag>
+                )}
               </div>
 
-              {product.images.length > 1 && (
-                <div className="thumbnail-list">
-                  {product.images.map((image, index) => (
+              {/* Thumbnails */}
+              {productImages.length > 1 && (
+                <div className="thumbnail-grid">
+                  {productImages.map((image, index) => (
                     <div
                       key={index}
                       className={`thumbnail ${selectedImageIndex === index ? "active" : ""}`}
@@ -295,212 +451,481 @@ export default function ProductDetailClient({ productId }: ProductDetailClientPr
                         alt={`${product.name} view ${index + 1}`}
                         fill
                         style={{ objectFit: "cover" }}
-                        sizes="90px"
+                        sizes="100px"
                       />
                     </div>
                   ))}
                 </div>
               )}
+
+              {/* Share Section */}
+              <Divider />
+              <div style={{ textAlign: "center" }}>
+                <Space size="large">
+                  <Button
+                    icon={isWishlisted ? <HeartFilled /> : <HeartOutlined />}
+                    size="large"
+                    onClick={() => setIsWishlisted(!isWishlisted)}
+                    style={{
+                      color: isWishlisted ? "#ff4d4f" : undefined,
+                      borderColor: isWishlisted ? "#ff4d4f" : undefined,
+                    }}
+                  >
+                    {isWishlisted ? "Wishlisted" : "Add to Wishlist"}
+                  </Button>
+                  <Button icon={<ShareAltOutlined />} size="large">
+                    Share
+                  </Button>
+                </Space>
+              </div>
             </div>
           </Col>
 
-          {/* Product Details */}
-          <Col xs={24} lg={12}>
-            <div className="product-info">
-              <div style={{ marginBottom: 16 }}>
-                <Button
-                  type="text"
-                  icon={<ArrowLeftOutlined />}
-                  onClick={() => router.back()}
-                  style={{ marginBottom: 16 }}
-                >
-                  Back
-                </Button>
-                <Title level={1} style={{ marginBottom: 16, fontSize: 36, fontWeight: 700 }}>
-                  {product.name}
-                </Title>
-
-                {/* Rating */}
-                {rating > 0 && (
-                  <Space size="middle" style={{ marginBottom: 16 }}>
-                    <Rate disabled defaultValue={rating} allowHalf style={{ fontSize: 18 }} />
-                    <Text strong style={{ fontSize: 16 }}>
-                      {rating.toFixed(1)}
-                    </Text>
-                    <Text type="secondary">({reviews} {reviews === 1 ? "review" : "reviews"})</Text>
-                  </Space>
-                )}
-
-                {/* Stock Status */}
-                <div style={{ marginBottom: 16 }}>
-                  {isOutOfStock ? (
-                    <Tag color="red" icon={<FireOutlined />} style={{ fontSize: 14, padding: "4px 12px" }}>
-                      Out of Stock
-                    </Tag>
-                  ) : (
-                    <Tag color="green" icon={<CheckOutlined />} style={{ fontSize: 14, padding: "4px 12px" }}>
-                      In Stock ({product.stock} available)
+          {/* Right Column - Product Info */}
+          <Col xs={24} lg={14}>
+            {/* Product Title & Basic Info */}
+            <div className="product-info-card">
+              <Space orientation="vertical" size="small" style={{ width: "100%", marginBottom: 16 }}>
+                <Space size="small" wrap>
+                  {product.is_on_sale && (
+                    <Tag color="red" icon={<FireOutlined />}>
+                      ON SALE
                     </Tag>
                   )}
-                </div>
+                  {totalSold > 10 && (
+                    <Tag color="purple" icon={<ThunderboltOutlined />}>
+                      BEST SELLER ({totalSold} sold)
+                    </Tag>
+                  )}
+                  {isLowStock && !isOutOfStock && (
+                    <Tag color="orange">
+                      ONLY {product.inventory} LEFT
+                    </Tag>
+                  )}
+                </Space>
+                <Title level={1} style={{ margin: 0, fontSize: 36, fontWeight: 800 }}>
+                  {product.name}
+                </Title>
+                <Text type="secondary" style={{ fontSize: 14 }}>
+                  SKU: {product.sku}
+                </Text>
+              </Space>
+
+              {/* Rating & Reviews */}
+              {rating > 0 && (
+                <Space size="large" style={{ marginBottom: 24 }}>
+                  <Space size={8}>
+                    <Rate disabled defaultValue={rating} allowHalf style={{ fontSize: 20, color: "#faad14" }} />
+                    <Text strong style={{ fontSize: 18 }}>
+                      {rating > 0 ? rating.toFixed(1) : "0.0"}
+                    </Text>
+                  </Space>
+                  <Text type="secondary" style={{ fontSize: 16 }}>
+                    ({reviews} {reviews === 1 ? "review" : "reviews"})
+                  </Text>
+                </Space>
+              )}
+
+              {/* Stock Status */}
+              <div style={{ marginBottom: 24 }}>
+                {isOutOfStock ? (
+                  <Tag color="red" icon={<FireOutlined />} style={{ fontSize: 16, padding: "8px 20px" }}>
+                    OUT OF STOCK
+                  </Tag>
+                ) : (
+                  <Tag color="green" icon={<CheckOutlined />} style={{ fontSize: 16, padding: "8px 20px" }}>
+                    IN STOCK - {product.inventory} Available
+                  </Tag>
+                )}
               </div>
 
               <Divider />
 
               {/* Price Section */}
-              <div className="price-section">
-                <div style={{ display: "flex", alignItems: "baseline", gap: 16, flexWrap: "wrap" }}>
-                  <Text
-                    strong
-                    style={{
-                      fontSize: 42,
-                      fontWeight: 700,
-                      color: "white",
-                    }}
-                  >
-                    {formatCurrency(product.price)}
-                  </Text>
-                  {hasDiscount && (
-                    <>
-                      <Text
-                        delete
-                        style={{
-                          fontSize: 24,
-                          color: "rgba(255, 255, 255, 0.8)",
-                        }}
-                      >
-                        {formatCurrency(product.originalPrice!)}
-                      </Text>
-                      <Tag
-                        color="red"
-                        style={{
-                          fontSize: 16,
-                          padding: "4px 12px",
-                          fontWeight: "bold",
-                        }}
-                      >
-                        Save {formatCurrency(product.originalPrice! - product.price)}
-                      </Tag>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {/* Description */}
-              <Paragraph style={{ fontSize: 16, lineHeight: 1.8, color: "#4b5563", marginBottom: 24 }}>
-                {product.description}
-              </Paragraph>
-
-              {/* Quantity & Actions */}
-              <div style={{ marginBottom: 24 }}>
-                <Text strong style={{ display: "block", marginBottom: 12, fontSize: 16 }}>
-                  Quantity:
-                </Text>
-                <Space size="large" align="center">
-                  <InputNumber
-                    min={1}
-                    max={product.stock}
-                    value={quantity}
-                    onChange={(value) => setQuantity(value || 1)}
-                    size="large"
-                    style={{ width: 120 }}
-                  />
-                  <Text type="secondary">Max: {product.stock} items</Text>
+              <div className="price-badge">
+                <Space orientation="vertical" size="small" style={{ width: "100%"}}>
+                  <Text style={{ color: "rgba(255,255,255,0.9)", fontSize: 14 }}>Price:</Text>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 16, flexWrap: "wrap" }}>
+                    <Text
+                      strong
+                      style={{
+                        fontSize: 48,
+                        fontWeight: 800,
+                        color: "white",
+                        lineHeight: 1,
+                      }}
+                    >
+                      {formatCurrency(displayPrice)}
+                    </Text>
+                    {hasDiscount && originalPrice && (
+                      <>
+                        <Text
+                          delete
+                          style={{
+                            fontSize: 28,
+                            color: "rgba(255, 255, 255, 0.7)",
+                          }}
+                        >
+                          {formatCurrency(originalPrice)}
+                        </Text>
+                        <Tag
+                          color="red"
+                          style={{
+                            fontSize: 18,
+                            padding: "6px 16px",
+                            fontWeight: "bold",
+                          }}
+                        >
+                          Save {formatCurrency(originalPrice - displayPrice)}
+                        </Tag>
+                      </>
+                    )}
+                  </div>
                 </Space>
               </div>
 
-              <div className="action-buttons">
-                <Button
-                  type="primary"
-                  size="large"
-                  icon={<ShoppingCartOutlined />}
-                  onClick={handleAddToCart}
-                  disabled={isOutOfStock}
-                  block
-                  style={{
-                    height: 50,
-                    fontSize: 16,
-                    fontWeight: 600,
-                    background: isOutOfStock
-                      ? undefined
-                      : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                    border: "none",
-                    borderRadius: 8,
-                  }}
-                >
-                  {isOutOfStock ? "Out of Stock" : "Add to Cart"}
-                </Button>
-                <Button
-                  size="large"
-                  icon={<HeartOutlined />}
-                  style={{ height: 50, borderRadius: 8 }}
-                >
-                  Wishlist
-                </Button>
+              {/* Description */}
+              <div style={{ marginBottom: 24 }}>
+                <Title level={5}>Description</Title>
+                <Paragraph style={{ fontSize: 16, lineHeight: 1.8, color: "#4b5563" }}>
+                  {product.description}
+                </Paragraph>
               </div>
 
-              {/* Trust Badges */}
-              <div className="trust-badges">
-                <div className="trust-badge">
-                  <TruckOutlined style={{ color: "var(--color-primary)", fontSize: 20 }} />
-                  <div>
-                    <Text strong style={{ display: "block", fontSize: 12 }}>
-                      Free Shipping
-                    </Text>
-                    <Text type="secondary" style={{ fontSize: 11 }}>
-                      On orders over ₹500
-                    </Text>
-                  </div>
+              {/* Product Details */}
+              {(product.color || product.material || product.weight) && (
+                <>
+                  <Divider />
+                  <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+                    {product.color && (
+                      <Col span={12}>
+                        <Space orientation="vertical" size={4}>
+                          <Text type="secondary">Color:</Text>
+                          <Tag color={product.color.toLowerCase()} style={{ fontSize: 14, padding: "4px 12px" }}>
+                            {product.color}
+                          </Tag>
+                        </Space>
+                      </Col>
+                    )}
+                    {product.material && (
+                      <Col span={12}>
+                        <Space orientation="vertical" size={4}>
+                          <Text type="secondary">Material:</Text>
+                          <Text strong>{product.material}</Text>
+                        </Space>
+                      </Col>
+                    )}
+                    {product.weight && (
+                      <Col span={12}>
+                        <Space orientation="vertical" size={4}>
+                          <Text type="secondary">Weight:</Text>
+                          <Text strong>{product.weight} kg</Text>
+                        </Space>
+                      </Col>
+                    )}
+                  </Row>
+                </>
+              )}
+
+              {/* Tags */}
+              {product.tags && product.tags.length > 0 && (
+                <div style={{ marginBottom: 24 }}>
+                  <Space size={[8, 8]} wrap>
+                    <TagOutlined style={{ color: "#667eea" }} />
+                    {product.tags.map((tag, index) => (
+                      <Tag key={index} style={{ fontSize: 13 }}>
+                        {tag}
+                      </Tag>
+                    ))}
+                  </Space>
                 </div>
-                <div className="trust-badge">
-                  <ReloadOutlined style={{ color: "var(--color-primary)", fontSize: 20 }} />
+              )}
+
+              <Divider />
+
+              {/* Quantity & Add to Cart */}
+              <div className="action-section">
+                <Space orientation="vertical" size="large" style={{ width: "100%" }}>
                   <div>
-                    <Text strong style={{ display: "block", fontSize: 12 }}>
-                      Easy Returns
+                    <Text strong style={{ display: "block", marginBottom: 12, fontSize: 16 }}>
+                      Quantity:
                     </Text>
-                    <Text type="secondary" style={{ fontSize: 11 }}>
-                      30-day return policy
-                    </Text>
+                    <Space size="large" align="center">
+                      <InputNumber
+                        min={1}
+                        max={product.inventory}
+                        value={quantity}
+                        onChange={(value) => setQuantity(value || 1)}
+                        size="large"
+                        style={{ width: 140 }}
+                        disabled={isOutOfStock}
+                      />
+                      {!isOutOfStock && (
+                        <Text type="secondary">Maximum: {product.inventory} items</Text>
+                      )}
+                    </Space>
                   </div>
-                </div>
-                <div className="trust-badge">
-                  <SafetyOutlined style={{ color: "var(--color-primary)", fontSize: 20 }} />
-                  <div>
-                    <Text strong style={{ display: "block", fontSize: 12 }}>
-                      Secure Payment
-                    </Text>
-                    <Text type="secondary" style={{ fontSize: 11 }}>
-                      SSL encrypted
-                    </Text>
-                  </div>
-                </div>
+
+                  <Space size="middle" style={{ width: "100%" }}>
+                    <Button
+                      type="primary"
+                      size="large"
+                      icon={<ShoppingCartOutlined />}
+                      onClick={handleAddToCart}
+                      disabled={isOutOfStock}
+                      block
+                      style={{
+                        height: 56,
+                        fontSize: 18,
+                        fontWeight: 600,
+                        background: isOutOfStock
+                          ? undefined
+                          : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                        border: "none",
+                        borderRadius: 12,
+                        flex: 1,
+                      }}
+                    >
+                      {isOutOfStock ? "Out of Stock" : "Add to Cart"}
+                    </Button>
+                    <Button
+                      size="large"
+                      disabled={isOutOfStock}
+                      onClick={handleBuyNow}
+                      style={{
+                        height: 56,
+                        fontSize: 16,
+                        fontWeight: 600,
+                        borderRadius: 12,
+                        minWidth: 140,
+                      }}
+                    >
+                      Buy Now
+                    </Button>
+                  </Space>
+                </Space>
               </div>
             </div>
 
-            {/* Product Information */}
-            <div className="info-section">
-              <Title level={4} style={{ marginBottom: 16 }}>
-                Product Information
-              </Title>
-              <Space direction="vertical" size="middle" style={{ width: "100%" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0" }}>
-                  <Text type="secondary">SKU:</Text>
-                  <Text strong>{product.id}</Text>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0" }}>
-                  <Text type="secondary">Stock:</Text>
-                  <Text strong>{product.stock > 0 ? `${product.stock} in stock` : "Out of stock"}</Text>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0" }}>
-                  <Text type="secondary">Category ID:</Text>
-                  <Text strong>{product.categoryId}</Text>
-                </div>
-              </Space>
+            {/* Trust Features */}
+            <div className="feature-grid">
+              <div className="feature-card">
+                <TruckOutlined style={{ fontSize: 32, color: "#667eea", marginBottom: 8 }} />
+                <Text strong style={{ display: "block", marginBottom: 4 }}>
+                  Fast Delivery
+                </Text>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  2-4 days shipping
+                </Text>
+              </div>
+              <div className="feature-card">
+                <SafetyOutlined style={{ fontSize: 32, color: "#52c41a", marginBottom: 8 }} />
+                <Text strong style={{ display: "block", marginBottom: 4 }}>
+                  Secure Payment
+                </Text>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  100% secure
+                </Text>
+              </div>
+              <div className="feature-card">
+                <ReloadOutlined style={{ fontSize: 32, color: "#faad14", marginBottom: 8 }} />
+                <Text strong style={{ display: "block", marginBottom: 4 }}>
+                  {product.is_returnable ? "Easy Returns" : "No Returns"}
+                </Text>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  {product.is_returnable ? "7 days return" : "Final sale"}
+                </Text>
+              </div>
+              <div className="feature-card">
+                <CheckOutlined style={{ fontSize: 32, color: "#13c2c2", marginBottom: 8 }} />
+                <Text strong style={{ display: "block", marginBottom: 4 }}>
+                  Quality Check
+                </Text>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  Verified quality
+                </Text>
+              </div>
             </div>
           </Col>
         </Row>
+
+        {/* Additional Information Tabs */}
+        <div className="info-tabs">
+          <Tabs
+            defaultActiveKey="description"
+            size="large"
+            items={[
+              {
+                key: "description",
+                label: <span><FileTextOutlined /> Description</span>,
+                children: (
+                  <div style={{ padding: 16 }}>
+                    <Paragraph style={{ fontSize: 16, lineHeight: 1.8 }}>
+                      {product.description}
+                    </Paragraph>
+                    {(product.color || product.material || product.weight) && (
+                      <>
+                        <Title level={5} style={{ marginTop: 24 }}>
+                          Specifications
+                        </Title>
+                        <Row gutter={[16, 16]}>
+                          {product.color && (
+                            <Col span={8}>
+                              <Card size="small">
+                                <Statistic title="Color" value={product.color} />
+                              </Card>
+                            </Col>
+                          )}
+                          {product.material && (
+                            <Col span={8}>
+                              <Card size="small">
+                                <Statistic title="Material" value={product.material} />
+                              </Card>
+                            </Col>
+                          )}
+                          {product.weight && (
+                            <Col span={8}>
+                              <Card size="small">
+                                <Statistic title="Weight" value={`${product.weight} kg`} />
+                              </Card>
+                            </Col>
+                          )}
+                        </Row>
+                      </>
+                    )}
+                  </div>
+                ),
+              },
+              {
+                key: "reviews",
+                label: (
+                  <span>
+                    <StarFilled /> Reviews ({reviews})
+                  </span>
+                ),
+                children: (
+                  <div style={{ padding: 16 }}>
+                    {/* Rating Overview */}
+                    <Row gutter={[32, 32]} style={{ marginBottom: 32 }}>
+                      <Col xs={24} md={8}>
+                        <div style={{ textAlign: "center", padding: 24, background: "#f8f9fa", borderRadius: 12 }}>
+                          <Title level={1} style={{ margin: 0, fontSize: 64, color: "#667eea" }}>
+                            {rating > 0 ? rating.toFixed(1) : "0.0"}
+                          </Title>
+                          <Rate disabled defaultValue={rating} allowHalf style={{ fontSize: 24 }} />
+                          <Text type="secondary" style={{ display: "block", marginTop: 8 }}>
+                            Based on {reviews} reviews
+                          </Text>
+                        </div>
+                      </Col>
+                      <Col xs={24} md={16}>
+                        <div style={{ padding: "16px 0" }}>
+                          {[5, 4, 3, 2, 1].map((star) => (
+                            <div key={star} className="rating-bar">
+                              <Text style={{ minWidth: 60 }}>{star} stars</Text>
+                              <Progress
+                                percent={star === 5 ? 70 : star === 4 ? 20 : 10}
+                                strokeColor="#faad14"
+                                style={{ flex: 1 }}
+                              />
+                              <Text type="secondary" style={{ minWidth: 40, textAlign: "right" }}>
+                                {star === 5 ? 70 : star === 4 ? 20 : 10}%
+                              </Text>
+                            </div>
+                          ))}
+                        </div>
+                      </Col>
+                    </Row>
+
+                    {/* Reviews List */}
+                    <Title level={5} style={{ marginBottom: 16 }}>
+                      Customer Reviews
+                    </Title>
+                    {mockReviews.map((review) => (
+                      <div key={review.id} className="review-card">
+                        <Space align="start" style={{ width: "100%" }}>
+                          <Avatar size={48} style={{ background: "#667eea" }}>
+                            {review.avatar}
+                          </Avatar>
+                          <div style={{ flex: 1 }}>
+                            <Space orientation="vertical" size={4} style={{ width: "100%" }}>
+                              <Space style={{ justifyContent: "space-between", width: "100%" }}>
+                                <Text strong>{review.name}</Text>
+                                <Text type="secondary" style={{ fontSize: 12 }}>
+                                  {review.date}
+                                </Text>
+                              </Space>
+                              <Rate disabled defaultValue={review.rating} style={{ fontSize: 14 }} />
+                              <Paragraph style={{ margin: "8px 0 0 0" }}>{review.comment}</Paragraph>
+                            </Space>
+                          </div>
+                        </Space>
+                      </div>
+                    ))}
+                  </div>
+                ),
+              },
+              {
+                key: "shipping",
+                label: <span><TruckOutlined /> Shipping</span>,
+                children: (
+                  <div style={{ padding: 16 }}>
+                    <Timeline
+                      items={[
+                        {
+                          icon: <ShopOutlined style={{ fontSize: 16 }} />,
+                          children: (
+                            <div>
+                              <Text strong>Order Processing</Text>
+                              <br />
+                              <Text type="secondary">1-2 business days</Text>
+                            </div>
+                          ),
+                        },
+                        {
+                          icon: <TruckOutlined style={{ fontSize: 16 }} />,
+                          children: (
+                            <div>
+                              <Text strong>In Transit</Text>
+                              <br />
+                              <Text type="secondary">2-4 business days</Text>
+                            </div>
+                          ),
+                        },
+                        {
+                          icon: <EnvironmentOutlined style={{ fontSize: 16 }} />,
+                          children: (
+                            <div>
+                              <Text strong>Delivered</Text>
+                              <br />
+                              <Text type="secondary">Delivered to your doorstep</Text>
+                            </div>
+                          ),
+                        },
+                      ]}
+                    />
+                    <Divider />
+                    <Space orientation="vertical" size="large" style={{ width: "100%" }}>
+                      <Card size="small">
+                        <Text strong>Free Shipping</Text>
+                        <br />
+                        <Text type="secondary">On orders over {formatCurrency(1000)}</Text>
+                      </Card>
+                      {product.is_returnable && (
+                        <Card size="small">
+                          <Text strong>Easy Returns</Text>
+                          <br />
+                          <Text type="secondary">7-day return policy</Text>
+                        </Card>
+                      )}
+                    </Space>
+                  </div>
+                ),
+              },
+            ]}
+          />
+        </div>
       </div>
     </div>
   );
 }
-

@@ -5,6 +5,8 @@ import { ENDPOINTS } from "@/lib/endpoints";
 // Category API request/response types
 export interface CategoryResponse extends Category {
   is_active?: boolean;
+  parentId?: string | null; // UUID string for subcategories
+  children?: CategoryResponse[]; // Subcategories
 }
 
 export interface CreateCategoryRequest {
@@ -12,6 +14,7 @@ export interface CreateCategoryRequest {
   description?: string;
   image?: string;
   is_active?: boolean;
+  parentId?: string | null; // UUID string for subcategories
 }
 
 export interface UpdateCategoryRequest {
@@ -19,6 +22,7 @@ export interface UpdateCategoryRequest {
   description?: string;
   image?: string;
   is_active?: boolean;
+  parentId?: string | null; // UUID string for subcategories
 }
 
 // Categories API slice

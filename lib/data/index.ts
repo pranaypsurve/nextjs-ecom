@@ -9,6 +9,7 @@ export interface Product {
   originalPrice?: number;
   images: string[];
   categoryId: string;
+  subCategoryId?: string;
   stock: number;
   featured: boolean;
   rating?: number;
@@ -23,9 +24,10 @@ export interface Category {
   slug: string;
   description?: string;
   image?: string;
-  parentId?: string;
+  parentId?: string | null; // null for top-level categories
   createdAt: string;
   updatedAt: string;
+  children?: Category[]; // Subcategories (for nested display)
 }
 
 export interface CartItem {

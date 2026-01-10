@@ -4,7 +4,7 @@ import { ENDPOINTS } from "@/lib/endpoints";
 
 // Order placement request types
 export interface OrderItem {
-  productId: number;
+  productId: string; // UUID string
   quantity: number;
 }
 
@@ -22,10 +22,14 @@ export interface ShippingAddress {
 
 export interface PlaceOrderRequest {
   items: OrderItem[];
-  couponId?: number;
+  couponId?: string; // UUID string
   shipping_cost?: number;
-  shipping_address?: string | ShippingAddress;
-  save_address?: boolean;
+  shipping_address_id?: string; // UUID string
+  shipping_address?: ShippingAddress;
+  save_shipping_address?: boolean;
+  billing_same_as_shipping?: boolean;
+  billing_address?: ShippingAddress;
+  save_billing_address?: boolean;
   notes?: string;
 }
 

@@ -9,6 +9,14 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  
+  // Disable caching for development
+  experimental: {
+    staleTimes: {
+      dynamic: 0,
+      static: 0,
+    },
+  },
 };
 
 export default nextConfig;

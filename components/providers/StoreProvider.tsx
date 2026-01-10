@@ -38,12 +38,21 @@ export default function StoreProvider({
     <div
       style={{
         display: "flex",
+        flexDirection: "column",
         justifyContent: "center",
         alignItems: "center",
         minHeight: "100vh",
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: "rgba(255, 255, 255, 0.9)",
+        zIndex: 9999,
       }}
     >
-      <Spin size="large" tip="Loading..." />
+      <Spin size="large" />
+      <div style={{ marginTop: 16, color: "#666", fontSize: 14 }}>Loading...</div>
     </div>
   );
 

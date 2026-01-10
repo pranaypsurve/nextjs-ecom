@@ -145,12 +145,18 @@ export const baseApi = createApi({
     "Order",
     "User",
     "Address",
+    "ShippingAddress",
     "Payment",
     "Coupon",
     "GiftCard",
     "Notification",
   ],
   endpoints: () => ({}),
+  // Disable caching for development - refetch on every mount
+  keepUnusedDataFor: 0, // Don't keep unused data
+  refetchOnMountOrArgChange: true, // Always refetch on component mount
+  refetchOnFocus: true, // Refetch when window regains focus
+  refetchOnReconnect: true, // Refetch when reconnecting
 });
 
 // Export reusable query/mutation builders for future use

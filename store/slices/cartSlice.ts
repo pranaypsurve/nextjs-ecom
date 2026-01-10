@@ -1,12 +1,20 @@
+/**
+ * Cart Slice
+ * 
+ * Simplified cart structure - products are sold directly without variants
+ */
+
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import type { Product } from "@/lib/data";
 
 export interface CartItem {
   id: string;
-  productId: string;
-  product: Product;
+  variantId: string; // NOTE: This is actually productId (kept as variantId for backward compatibility with existing cart items)
   quantity: number;
   price: number;
+  // Display information
+  productName: string;
+  productImage: string;
+  variantOptions?: Record<string, string>; // For display only (legacy field, not used)
 }
 
 interface CartState {
@@ -23,19 +31,33 @@ const cartSlice = createSlice({
   name: "cart",
   initialState,
   reducers: {
-    addToCart: (state, action: PayloadAction<{ product: Product; quantity?: number }>) => {
-      const { product, quantity = 1 } = action.payload;
-      const existingItem = state.items.find((item) => item.productId === product.id);
+    addToCart: (
+      state,
+      action: PayloadAction<{
+        variantId: string; // NOTE: This is actually productId
+        quantity?: number;
+        price: number;
+        productName: string;
+        productImage: string;
+        variantOptions?: Record<string, string>; // Legacy field, not used
+      }>
+    ) => {
+      const { variantId, quantity = 1, price, productName, productImage, variantOptions } = action.payload;
+
+      // Find existing item by variantId (which is actually productId)
+      const existingItem = state.items.find((item) => item.variantId === variantId);
 
       if (existingItem) {
         existingItem.quantity += quantity;
       } else {
         state.items.push({
-          id: `${product.id}-${Date.now()}`,
-          productId: product.id,
-          product,
+          id: `${variantId}-${Date.now()}`,
+          variantId,
           quantity,
-          price: product.price,
+          price,
+          productName,
+          productImage,
+          variantOptions,
         });
       }
     },

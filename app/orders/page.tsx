@@ -326,7 +326,7 @@ export default function OrdersPage() {
                 title={<span style={{ color: "rgba(255,255,255,0.9)" }}>Total Orders</span>}
                 value={stats.totalOrders}
                 prefix={<ShoppingOutlined />}
-                valueStyle={{ color: "#ffd700", fontSize: 32, fontWeight: 700 }}
+                styles={{ content: { color: "#ffd700", fontSize: 32, fontWeight: 700 } }}
               />
             </div>
             <div className="stat-card">
@@ -334,7 +334,7 @@ export default function OrdersPage() {
                 title={<span style={{ color: "rgba(255,255,255,0.9)" }}>Total Spent</span>}
                 value={formatCurrency(stats.totalSpent)}
                 prefix={<DollarOutlined />}
-                valueStyle={{ color: "#ffd700", fontSize: 28, fontWeight: 700 }}
+                styles={{ content: { color: "#ffd700", fontSize: 28, fontWeight: 700 } }}
               />
             </div>
             <div className="stat-card">
@@ -342,7 +342,7 @@ export default function OrdersPage() {
                 title={<span style={{ color: "rgba(255,255,255,0.9)" }}>Pending</span>}
                 value={stats.pendingOrders}
                 prefix={<ClockCircleOutlined />}
-                valueStyle={{ color: "#ffd700", fontSize: 32, fontWeight: 700 }}
+                styles={{ content: { color: "#ffd700", fontSize: 32, fontWeight: 700 } }}
               />
             </div>
             <div className="stat-card">
@@ -350,7 +350,7 @@ export default function OrdersPage() {
                 title={<span style={{ color: "rgba(255,255,255,0.9)" }}>Delivered</span>}
                 value={stats.deliveredOrders}
                 prefix={<CheckCircleOutlined />}
-                valueStyle={{ color: "#ffd700", fontSize: 32, fontWeight: 700 }}
+                styles={{ content: { color: "#ffd700", fontSize: 32, fontWeight: 700 } }}
               />
             </div>
           </div>
@@ -454,69 +454,166 @@ export default function OrdersPage() {
             </Card>
           ) : (
             <div>
-              {filteredOrders.flatMap((order: any) => {
+              {filteredOrders.map((order: any) => {
                 // Use order_number from API if available, otherwise generate it
                 const orderNumber = order.order_number || `ORD-${String(order.id).slice(0, 8).toUpperCase()}`;
                 // Handle both created_at (API) and createdAt (local)
                 const orderDate = dayjs(order.created_at || order.createdAt);
                 // Handle both orderItems (API) and items (local)
                 const orderItems = order.orderItems || order.items || [];
+                const statusInfo = getStatusColor(order.status);
+                const totalAmount = parseFloat(order.total || order.subtotal || 0);
+                const subtotal = parseFloat(order.subtotal || totalAmount);
+                const discount = parseFloat(order.discount || 0);
+                const shippingCost = parseFloat(order.shipping_cost || 0);
 
-                // Create a separate card for each product in the order
-                return orderItems.map((orderItem: any, itemIndex: number) => {
-                  const product = orderItem.product || {};
-                  const productName = product.name || "Product";
-                  // Use discount_price from product if available, otherwise use price
-                  const itemPrice = parseFloat(product.discount_price || product.price || orderItem.discount || orderItem.price || 0);
-                  const itemQuantity = orderItem.quantity || 1;
-                  const itemTotal = parseFloat(orderItem.total || itemPrice * itemQuantity);
-
-                  return (
-                    <Card key={`${order.id}-${itemIndex}`} className="order-card !mb-4" hoverable>
+                return (
+                  <Card key={order.id} className="order-card" hoverable>
                     {/* Order Header */}
                     <div className="order-header">
                       <div style={{ flex: 1 }}>
-                        {/* Product Name */}
-                        <Text
-                          strong
-                          style={{
-                            fontSize: 18,
-                            display: "block",
-                            marginBottom: 8,
-                            color: "#1f2937",
-                          }}
-                        >
-                          {productName}
-                        </Text>
-                        {/* Order ID */}
-                        <Text
-                          type="secondary"
-                          style={{ fontSize: 14, display: "block", marginBottom: 8 }}
-                        >
-                          Order ID: {orderNumber}
-                        </Text>
-                        {/* Date/Time */}
-                        <Space size="small">
-                          <CalendarOutlined style={{ color: "#8c8c8c" }} />
-                          <Text type="secondary" style={{ fontSize: 13 }}>
-                            Placed on {orderDate.format("MMMM DD, YYYY [at] hh:mm A")}
-                          </Text>
-                        </Space>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 16 }}>
+                          <div style={{ flex: 1 }}>
+                            <Space size="middle" wrap>
+                              <Text strong style={{ fontSize: 18, color: "#1f2937" }}>
+                                Order #{orderNumber}
+                              </Text>
+                              <Tag
+                                color={statusInfo.color}
+                                icon={statusInfo.icon}
+                                style={{
+                                  padding: "6px 16px",
+                                  borderRadius: 20,
+                                  fontSize: 13,
+                                  fontWeight: 600,
+                                  textTransform: "uppercase",
+                                  letterSpacing: 0.5,
+                                }}
+                              >
+                                {order.status || "Pending"}
+                              </Tag>
+                            </Space>
+                            <div style={{ marginTop: 12 }}>
+                              <Space size="small">
+                                <CalendarOutlined style={{ color: "#8c8c8c" }} />
+                                <Text type="secondary" style={{ fontSize: 14 }}>
+                                  Placed on {orderDate.format("MMMM DD, YYYY [at] hh:mm A")}
+                                </Text>
+                              </Space>
+                            </div>
+                          </div>
+                          <div style={{ textAlign: "right" }}>
+                            <Text type="secondary" style={{ fontSize: 13, display: "block" }}>
+                              Total Amount
+                            </Text>
+                            <Text
+                              strong
+                              style={{
+                                fontSize: 24,
+                                color: "#667eea",
+                                fontWeight: 700,
+                                display: "block",
+                                marginTop: 4,
+                              }}
+                            >
+                              {formatCurrency(totalAmount)}
+                            </Text>
+                          </div>
+                        </div>
                       </div>
                     </div>
 
                     {/* Order Body */}
                     <div className="order-body">
+                      {/* Order Items Preview */}
+                      {orderItems.length > 0 && (
+                        <div style={{ marginBottom: 24 }}>
+                          <Text strong style={{ fontSize: 15, display: "block", marginBottom: 16 }}>
+                            Items ({orderItems.length})
+                          </Text>
+                          <div className="order-items-preview">
+                            {orderItems.slice(0, 3).map((item: any, index: number) => {
+                              const product = item.product || {};
+                              const productImage = product.thumbnail || product.image || product.thumbnail || "";
+                              const productName = product.name || "Product";
+                              const itemQuantity = item.quantity || 1;
+                              const itemPrice = parseFloat(item.price || product.price || product.discount_price || 0);
+                              const itemTotal = parseFloat(item.total || itemPrice * itemQuantity);
+
+                              return (
+                                <div key={index} className="item-preview">
+                                  {productImage ? (
+                                    <Image
+                                      src={productImage}
+                                      alt={productName}
+                                      width={60}
+                                      height={60}
+                                      style={{
+                                        borderRadius: 8,
+                                        objectFit: "cover",
+                                      }}
+                                      fallback="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjYwIiBoZWlnaHQ9IjYwIiBmaWxsPSIjZjBmMGYwIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4="
+                                    />
+                                  ) : (
+                                    <div className="item-image">
+                                      <ShoppingOutlined style={{ fontSize: 24, color: "#bfbfbf" }} />
+                                    </div>
+                                  )}
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    <Text
+                                      strong
+                                      style={{
+                                        fontSize: 14,
+                                        display: "block",
+                                        marginBottom: 4,
+                                        overflow: "hidden",
+                                        textOverflow: "ellipsis",
+                                        whiteSpace: "nowrap",
+                                      }}
+                                    >
+                                      {productName}
+                                    </Text>
+                                    <Text type="secondary" style={{ fontSize: 12, display: "block" }}>
+                                      Qty: {itemQuantity} × {formatCurrency(itemPrice)}
+                                    </Text>
+                                    <Text strong style={{ fontSize: 13, color: "#667eea", display: "block", marginTop: 4 }}>
+                                      {formatCurrency(itemTotal)}
+                                    </Text>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                            {orderItems.length > 3 && (
+                              <div
+                                style={{
+                                  padding: 16,
+                                  background: "#f0f5ff",
+                                  borderRadius: 8,
+                                  textAlign: "center",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  minWidth: 120,
+                                }}
+                              >
+                                <Text strong style={{ color: "#667eea", fontSize: 14 }}>
+                                  +{orderItems.length - 3} more
+                                </Text>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
 
                       {/* Order Timeline */}
                       <div className="timeline-container">
                         <Timeline
                           items={[
                             {
-                              color: order.status === "pending" ? "gold" : "green",
-                              children: (
+                              color: "green",
+                              content: (
                                 <div>
-                                  <Text strong style={{ display: "block" }}>
+                                  <Text strong style={{ display: "block", fontSize: 14 }}>
                                     Order Placed
                                   </Text>
                                   <Text type="secondary" style={{ fontSize: 12 }}>
@@ -526,76 +623,121 @@ export default function OrdersPage() {
                               ),
                             },
                             {
-                              color:
-                                ["confirmed", "processing", "shipped", "delivered"].includes(
-                                  order.status || ""
-                                )
-                                  ? "green"
-                                  : "gray",
-                              children: (
+                              color: ["confirmed", "processing", "shipped", "delivered"].includes(order.status || "") ? "blue" : "gray",
+                              content: (
                                 <div>
                                   <Text
                                     strong
                                     style={{
                                       display: "block",
-                                      color:
-                                        ["confirmed", "processing", "shipped", "delivered"].includes(
-                                          order.status || ""
-                                        )
-                                          ? undefined
-                                          : "#bfbfbf",
+                                      fontSize: 14,
+                                      color: ["confirmed", "processing", "shipped", "delivered"].includes(order.status || "")
+                                        ? undefined
+                                        : "#bfbfbf",
                                     }}
                                   >
-                                    {order.status === "confirmed" || order.status === "processing"
+                                    {order.status === "confirmed"
                                       ? "Order Confirmed"
-                                      : order.status === "shipped"
-                                        ? "Shipped"
-                                        : order.status === "delivered"
-                                          ? "Delivered"
-                                          : "Processing"}
+                                      : order.status === "processing"
+                                        ? "Processing"
+                                        : order.status === "shipped"
+                                          ? "Shipped"
+                                          : order.status === "delivered"
+                                            ? "Delivered"
+                                            : "Pending Confirmation"}
                                   </Text>
+                                  {order.status === "shipped" && order.updated_at && (
+                                    <Text type="secondary" style={{ fontSize: 12 }}>
+                                      {dayjs(order.updated_at).format("MMM DD, YYYY")}
+                                    </Text>
+                                  )}
                                 </div>
                               ),
                             },
                             {
                               color: order.status === "delivered" ? "green" : "gray",
-                              children: (
+                              content: (
                                 <div>
                                   <Text
                                     strong
                                     style={{
                                       display: "block",
+                                      fontSize: 14,
                                       color: order.status === "delivered" ? undefined : "#bfbfbf",
                                     }}
                                   >
                                     Delivered
                                   </Text>
+                                  {order.status === "delivered" && order.updated_at && (
+                                    <Text type="secondary" style={{ fontSize: 12 }}>
+                                      {dayjs(order.updated_at).format("MMM DD, YYYY [at] hh:mm A")}
+                                    </Text>
+                                  )}
                                 </div>
                               ),
                             },
                           ]}
                         />
                       </div>
+
+                      {/* Price Breakdown */}
+                      <Divider style={{ margin: "20px 0" }} />
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between" }}>
+                          <Text type="secondary">Subtotal:</Text>
+                          <Text strong>{formatCurrency(subtotal)}</Text>
+                        </div>
+                        {discount > 0 && (
+                          <div style={{ display: "flex", justifyContent: "space-between" }}>
+                            <Text type="secondary">Discount:</Text>
+                            <Text type="danger">-{formatCurrency(discount)}</Text>
+                          </div>
+                        )}
+                        {shippingCost > 0 && (
+                          <div style={{ display: "flex", justifyContent: "space-between" }}>
+                            <Text type="secondary">Shipping:</Text>
+                            <Text>{formatCurrency(shippingCost)}</Text>
+                          </div>
+                        )}
+                        <Divider style={{ margin: "8px 0" }} />
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            padding: "12px 16px",
+                            background: "linear-gradient(135deg, #667eea15 0%, #764ba215 100%)",
+                            borderRadius: 8,
+                          }}
+                        >
+                          <Text strong style={{ fontSize: 16 }}>Total:</Text>
+                          <Text strong style={{ fontSize: 18, color: "#667eea" }}>
+                            {formatCurrency(totalAmount)}
+                          </Text>
+                        </div>
+                      </div>
                     </div>
 
                     {/* Order Footer */}
                     <div className="order-footer">
                       <div>
-                        <Text type="secondary" style={{ fontSize: 13, display: "block" }}>
-                          Order Total
-                        </Text>
-                        <Text
-                          strong
-                          style={{
-                            fontSize: 24,
-                            color: "#667eea",
-                            fontWeight: 700,
-                            display: "block",
-                            marginTop: 4,
-                          }}
-                        >
-                          {formatCurrency(itemTotal)}
-                        </Text>
+                        {order.paymentStatus && (
+                          <Space size="small">
+                            <Text type="secondary" style={{ fontSize: 13 }}>
+                              Payment:
+                            </Text>
+                            <Tag
+                              color={getPaymentStatusColor(order.paymentStatus)}
+                              style={{
+                                borderRadius: 6,
+                                padding: "2px 10px",
+                                fontSize: 12,
+                                fontWeight: 500,
+                              }}
+                            >
+                              {order.paymentStatus.toUpperCase()}
+                            </Tag>
+                          </Space>
+                        )}
                       </div>
                       <Link href={`/orders/${order.id}`}>
                         <Button
@@ -610,13 +752,12 @@ export default function OrdersPage() {
                             fontWeight: 600,
                           }}
                         >
-                          View Details
+                          View Order Details
                         </Button>
                       </Link>
                     </div>
                   </Card>
-                  );
-                });
+                );
               })}
             </div>
           )}

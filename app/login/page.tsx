@@ -1,10 +1,11 @@
 "use client";
 
-import { Form, Input, Button, Card, Typography, App } from "antd";
+import { useEffect, useState } from "react";
+import { Form, Input, Button, Card, Typography, App, Spin } from "antd";
 import { UserOutlined, LockOutlined } from "@ant-design/icons";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useAppDispatch } from "@/store/hooks";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { setCredentials } from "@/store/slices/authSlice";
 import { useLoginMutation } from "@/store/api/authApi";
 import { Role } from "@/lib/constants";
@@ -16,6 +17,22 @@ export default function LoginPage() {
   const dispatch = useAppDispatch();
   const { message } = App.useApp();
   const [login, { isLoading }] = useLoginMutation();
+  const { user, isAuthenticated } = useAppSelector((state) => state.auth);
+  const [mounted, setMounted] = useState(false);
+
+  // Wait for client-side hydration
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (mounted && isAuthenticated && user) {
+      // Redirect based on user role
+      const redirectPath = user.role === Role.ADMIN ? "/admin" : "/";
+      router.replace(redirectPath);
+    }
+  }, [mounted, isAuthenticated, user, router]);
 
   const handleSubmit = async (values: { email: string; password: string }) => {
     try {
@@ -59,6 +76,23 @@ export default function LoginPage() {
       message.error(errorMessage);
     }
   };
+
+  // Show loading while checking auth state or redirecting
+  if (!mounted || (mounted && isAuthenticated && user)) {
+    return (
+      <div
+        style={{
+          minHeight: "calc(100vh - 64px)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "linear-gradient(135deg, var(--color-primary) 0%, #52c41a 100%)",
+        }}
+      >
+        <Spin size="large" />
+      </div>
+    );
+  }
 
   return (
     <div

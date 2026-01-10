@@ -17,12 +17,17 @@ let failedQueue: Array<{
 
 // Process queued requests after token refresh
 const processQueue = (error: any = null) => {
-  failedQueue.forEach(({ resolve, reject, args, api, extraOptions }) => {
+  failedQueue.forEach(async ({ resolve, reject, args, api, extraOptions }) => {
     if (error) {
       reject(error);
     } else {
       // Retry the original request
-      baseQuery(args, api, extraOptions).then(resolve).catch(reject);
+      try {
+        const result = await baseQuery(args, api, extraOptions);
+        resolve(result);
+      } catch (err) {
+        reject(err);
+      }
     }
   });
   failedQueue = [];

@@ -122,6 +122,13 @@ export const ENDPOINTS = {
     MARK_READ: (id: string | number) => `/notifications/${id}/read`,
     MARK_ALL_READ: "/notifications/read-all",
   },
+
+  // Files
+  FILES: {
+    UPLOAD: "/files/upload",
+    UPDATE: (filename: string) => `/files/update/${filename}`,
+    DELETE: (filename: string) => `/files/${filename}`,
+  },
 } as const;
 
 // Helper function to get full endpoint URL

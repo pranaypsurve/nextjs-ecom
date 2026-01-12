@@ -534,7 +534,7 @@ export default function OrdersPage() {
                           <div className="order-items-preview">
                             {orderItems.slice(0, 3).map((item: any, index: number) => {
                               const product = item.product || {};
-                              const productImage = product.thumbnail || product.image || product.thumbnail || "";
+                              const productImage = product.thumbnail || "";
                               const productName = product.name || "Product";
                               const itemQuantity = item.quantity || 1;
                               const itemPrice = parseFloat(item.price || product.price || product.discount_price || 0);

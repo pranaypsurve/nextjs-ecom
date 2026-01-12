@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Row,
   Col,
@@ -44,6 +44,9 @@ import {
   EnvironmentOutlined,
   FileTextOutlined,
   HomeOutlined,
+  LeftOutlined,
+  RightOutlined,
+  ZoomInOutlined,
 } from "@ant-design/icons";
 import Image from "next/image";
 import Link from "next/link";
@@ -85,16 +88,125 @@ export default function ProductDetailClient({ productId }: ProductDetailClientPr
   const totalSold = product?.total_sold || 0;
   const isLowStock = product ? product.inventory < product.low_stock_threshold : false;
 
-  // Images handling
+  // Helper function to validate URL
+  const isValidUrl = (url: string): boolean => {
+    if (!url || typeof url !== 'string' || !url.trim()) return false;
+    try {
+      // Check if it's a valid absolute URL
+      if (url.startsWith('http://') || url.startsWith('https://')) {
+        new URL(url);
+        return true;
+      }
+      // Allow relative paths starting with /
+      if (url.startsWith('/')) {
+        return true;
+      }
+      // Allow data URLs
+      if (url.startsWith('data:')) {
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  };
+
+  // Images handling - use images array, fallback to image/thumbnail
   const productImages = useMemo(() => {
     if (!product) return [];
+    
+    // Prefer images array if available
+    if (product.images && product.images.length > 0) {
+      return product.images.filter((img) => {
+        if (!img || typeof img !== 'string') return false;
+        return isValidUrl(img);
+      });
+    }
+    // Fallback to single image or thumbnail
     const images = [];
-    if (product.image) images.push(product.image);
-    if (product.thumbnail && product.thumbnail !== product.image) images.push(product.thumbnail);
+    if (product.image && isValidUrl(product.image)) images.push(product.image);
+    if (product.thumbnail && product.thumbnail !== product.image && isValidUrl(product.thumbnail)) {
+      images.push(product.thumbnail);
+    }
     return images.length > 0 ? images : [];
   }, [product]);
 
   const selectedImage = productImages[selectedImageIndex] || productImages[0];
+  const hasMultipleImages = productImages.length > 1;
+  
+  // Reset selectedImageIndex if it's out of bounds
+  useEffect(() => {
+    if (selectedImageIndex >= productImages.length && productImages.length > 0) {
+      setSelectedImageIndex(0);
+    }
+  }, [productImages.length, selectedImageIndex]);
+  
+  // Validate selectedImage before using
+  const validSelectedImage = selectedImage && isValidUrl(selectedImage) ? selectedImage : undefined;
+
+  // Navigation handlers
+  const handlePreviousImage = () => {
+    setSelectedImageIndex((prev) => (prev > 0 ? prev - 1 : productImages.length - 1));
+  };
+
+  const handleNextImage = () => {
+    setSelectedImageIndex((prev) => (prev < productImages.length - 1 ? prev + 1 : 0));
+  };
+
+  // Handle share product
+  const handleShare = async () => {
+    if (!product) return;
+
+    const productUrl = typeof window !== 'undefined' 
+      ? `${window.location.origin}/products/${product.id}`
+      : `/products/${product.id}`;
+    
+    const shareData = {
+      title: product.name,
+      text: `Check out ${product.name} - ${product.description?.substring(0, 100)}...`,
+      url: productUrl,
+    };
+
+    // Check if Web Share API is available (mobile devices)
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      try {
+        await navigator.share(shareData);
+        message.success("Shared successfully!");
+      } catch (error: any) {
+        // User cancelled or error occurred
+        if (error.name !== 'AbortError') {
+          // Fallback to copy link if share fails
+          await handleCopyLink(productUrl);
+        }
+      }
+    } else {
+      // Desktop fallback - copy link to clipboard
+      await handleCopyLink(productUrl);
+    }
+  };
+
+  // Handle copy link to clipboard
+  const handleCopyLink = async (url: string) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      message.success("Product link copied to clipboard!");
+    } catch (error) {
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = url;
+      textArea.style.position = 'fixed';
+      textArea.style.opacity = '0';
+      document.body.appendChild(textArea);
+      textArea.select();
+      try {
+        document.execCommand('copy');
+        message.success("Product link copied to clipboard!");
+      } catch (err) {
+        message.error("Failed to copy link");
+      }
+      document.body.removeChild(textArea);
+    }
+  };
 
   // Handle add to cart
   const handleAddToCart = () => {
@@ -116,7 +228,7 @@ export default function ProductDetailClient({ productId }: ProductDetailClientPr
         quantity,
         price: displayPrice,
         productName: product.name,
-        productImage: selectedImage || "",
+        productImage: product.thumbnail || "",
       })
     );
     dispatch(openCart());
@@ -144,7 +256,7 @@ export default function ProductDetailClient({ productId }: ProductDetailClientPr
         quantity,
         price: displayPrice,
         productName: product.name,
-        productImage: selectedImage || "",
+        productImage: product.thumbnail || "",
       })
     );
     
@@ -238,16 +350,127 @@ export default function ProductDetailClient({ productId }: ProductDetailClientPr
           border-radius: 16px;
           overflow: hidden;
           margin-bottom: 16px;
+          cursor: zoom-in;
         }
 
-        .thumbnail-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+        .main-image-wrapper {
+          width: 100%;
+          height: 100%;
+          position: relative;
+          overflow: hidden;
+        }
+
+        .main-image-wrapper:hover .main-image {
+          transform: scale(1.5);
+        }
+
+        .main-image {
+          transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+          transform-origin: center center;
+        }
+
+        .image-navigation {
+          position: absolute;
+          top: 50%;
+          transform: translateY(-50%);
+          background: rgba(255, 255, 255, 0.9);
+          border: none;
+          width: 48px;
+          height: 48px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          z-index: 10;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+          transition: all 0.3s ease;
+        }
+
+        .image-navigation:hover {
+          background: white;
+          transform: translateY(-50%) scale(1.1);
+          box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+        }
+
+        .image-navigation.prev {
+          left: 16px;
+        }
+
+        .image-navigation.next {
+          right: 16px;
+        }
+
+        .image-counter {
+          position: absolute;
+          bottom: 16px;
+          right: 16px;
+          background: rgba(0, 0, 0, 0.7);
+          color: white;
+          padding: 8px 16px;
+          border-radius: 20px;
+          font-size: 14px;
+          font-weight: 600;
+          z-index: 10;
+        }
+
+        .zoom-indicator {
+          position: absolute;
+          top: 16px;
+          right: 16px;
+          background: rgba(0, 0, 0, 0.6);
+          color: white;
+          padding: 8px 12px;
+          border-radius: 8px;
+          font-size: 12px;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          z-index: 10;
+          opacity: 0;
+          transition: opacity 0.3s ease;
+        }
+
+        .main-image-container:hover .zoom-indicator {
+          opacity: 1;
+        }
+
+        .thumbnail-container {
+          position: relative;
+          margin-bottom: 16px;
+        }
+
+        .thumbnail-scroll {
+          display: flex;
           gap: 12px;
+          overflow-x: auto;
+          scroll-behavior: smooth;
+          padding: 4px 0;
+          scrollbar-width: thin;
+          scrollbar-color: #667eea #f0f0f0;
+        }
+
+        .thumbnail-scroll::-webkit-scrollbar {
+          height: 6px;
+        }
+
+        .thumbnail-scroll::-webkit-scrollbar-track {
+          background: #f0f0f0;
+          border-radius: 10px;
+        }
+
+        .thumbnail-scroll::-webkit-scrollbar-thumb {
+          background: #667eea;
+          border-radius: 10px;
+        }
+
+        .thumbnail-scroll::-webkit-scrollbar-thumb:hover {
+          background: #5568d3;
         }
 
         .thumbnail {
-          width: 100%;
+          min-width: 90px;
+          width: 90px;
           aspect-ratio: 1;
           border-radius: 12px;
           overflow: hidden;
@@ -255,17 +478,28 @@ export default function ProductDetailClient({ productId }: ProductDetailClientPr
           position: relative;
           background: #f5f5f5;
           border: 3px solid transparent;
-          transition: all 0.3s ease;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          flex-shrink: 0;
         }
 
         .thumbnail.active {
           border-color: #667eea;
-          box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+          box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2), 0 4px 12px rgba(102, 126, 234, 0.3);
+          transform: scale(1.05);
         }
 
         .thumbnail:hover {
-          transform: scale(1.05);
+          transform: scale(1.08);
           border-color: #667eea;
+          box-shadow: 0 4px 16px rgba(102, 126, 234, 0.25);
+        }
+
+        .thumbnail img {
+          transition: transform 0.3s ease;
+        }
+
+        .thumbnail:hover img {
+          transform: scale(1.1);
         }
 
         .product-info-card {
@@ -346,6 +580,33 @@ export default function ProductDetailClient({ productId }: ProductDetailClientPr
 
           .main-image-container {
             height: 350px;
+            cursor: default;
+          }
+
+          .main-image-wrapper:hover .main-image {
+            transform: scale(1);
+          }
+
+          .image-navigation {
+            width: 40px;
+            height: 40px;
+          }
+
+          .image-navigation.prev {
+            left: 8px;
+          }
+
+          .image-navigation.next {
+            right: 8px;
+          }
+
+          .zoom-indicator {
+            display: none;
+          }
+
+          .thumbnail {
+            min-width: 70px;
+            width: 70px;
           }
 
           .feature-grid {
@@ -379,17 +640,53 @@ export default function ProductDetailClient({ productId }: ProductDetailClientPr
           {/* Left Column - Images */}
           <Col xs={24} lg={10}>
             <div className="image-gallery-section">
-              {/* Main Image */}
+              {/* Main Image with Zoom */}
               <div className="main-image-container">
-                {selectedImage ? (
-                  <Image
-                    src={selectedImage}
-                    alt={product.name}
-                    fill
-                    style={{ objectFit: "contain", padding: 20 }}
-                    sizes="(max-width: 768px) 100vw, 40vw"
-                    priority
-                  />
+                {validSelectedImage ? (
+                  <>
+                    <div className="main-image-wrapper">
+                      <Image
+                        src={validSelectedImage}
+                        alt={product.name}
+                        fill
+                        className="main-image"
+                        style={{ objectFit: "contain", padding: 20 }}
+                        sizes="(max-width: 768px) 100vw, 40vw"
+                        priority
+                        onError={(e) => {
+                          // Hide broken images
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
+                    </div>
+                    
+                    {/* Zoom Indicator */}
+                    <div className="zoom-indicator">
+                      <ZoomInOutlined />
+                      <span>Hover to zoom</span>
+                    </div>
+
+                    {/* Navigation Arrows */}
+                    {hasMultipleImages && (
+                      <>
+                        <Button
+                          className="image-navigation prev"
+                          icon={<LeftOutlined />}
+                          onClick={handlePreviousImage}
+                          aria-label="Previous image"
+                        />
+                        <Button
+                          className="image-navigation next"
+                          icon={<RightOutlined />}
+                          onClick={handleNextImage}
+                          aria-label="Next image"
+                        />
+                        <div className="image-counter">
+                          {selectedImageIndex + 1} / {productImages.length}
+                        </div>
+                      </>
+                    )}
+                  </>
                 ) : (
                   <div
                     style={{
@@ -412,11 +709,12 @@ export default function ProductDetailClient({ productId }: ProductDetailClientPr
                       backgroundColor: "#ff4d4f",
                       position: "absolute",
                       top: 20,
-                      right: 20,
+                      left: hasMultipleImages ? 70 : 20,
                       fontSize: 20,
                       fontWeight: "bold",
                       padding: "8px 16px",
                       boxShadow: "0 4px 12px rgba(255,77,79,0.3)",
+                      zIndex: 10,
                     }}
                   />
                 )}
@@ -427,9 +725,10 @@ export default function ProductDetailClient({ productId }: ProductDetailClientPr
                     style={{
                       position: "absolute",
                       top: 20,
-                      left: 20,
+                      left: hasDiscount && hasMultipleImages ? 70 : hasDiscount ? 20 : hasMultipleImages ? 70 : 20,
                       fontSize: 14,
                       padding: "6px 12px",
+                      zIndex: 10,
                     }}
                   >
                     FEATURED
@@ -437,24 +736,34 @@ export default function ProductDetailClient({ productId }: ProductDetailClientPr
                 )}
               </div>
 
-              {/* Thumbnails */}
-              {productImages.length > 1 && (
-                <div className="thumbnail-grid">
-                  {productImages.map((image, index) => (
-                    <div
-                      key={index}
-                      className={`thumbnail ${selectedImageIndex === index ? "active" : ""}`}
-                      onClick={() => setSelectedImageIndex(index)}
-                    >
-                      <Image
-                        src={image}
-                        alt={`${product.name} view ${index + 1}`}
-                        fill
-                        style={{ objectFit: "cover" }}
-                        sizes="100px"
-                      />
-                    </div>
-                  ))}
+              {/* Thumbnails Carousel */}
+              {hasMultipleImages && (
+                <div className="thumbnail-container">
+                  <div className="thumbnail-scroll">
+                    {productImages.map((image, index) => (
+                      <div
+                        key={index}
+                        className={`thumbnail ${selectedImageIndex === index ? "active" : ""}`}
+                        onClick={() => setSelectedImageIndex(index)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            setSelectedImageIndex(index);
+                          }
+                        }}
+                        aria-label={`View image ${index + 1}`}
+                      >
+                        <Image
+                          src={image}
+                          alt={`${product.name} view ${index + 1}`}
+                          fill
+                          style={{ objectFit: "cover" }}
+                          sizes="90px"
+                        />
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
 
@@ -473,7 +782,11 @@ export default function ProductDetailClient({ productId }: ProductDetailClientPr
                   >
                     {isWishlisted ? "Wishlisted" : "Add to Wishlist"}
                   </Button>
-                  <Button icon={<ShareAltOutlined />} size="large">
+                  <Button 
+                    icon={<ShareAltOutlined />} 
+                    size="large"
+                    onClick={handleShare}
+                  >
                     Share
                   </Button>
                 </Space>
@@ -874,7 +1187,7 @@ export default function ProductDetailClient({ productId }: ProductDetailClientPr
                       items={[
                         {
                           icon: <ShopOutlined style={{ fontSize: 16 }} />,
-                          children: (
+                          content: (
                             <div>
                               <Text strong>Order Processing</Text>
                               <br />
@@ -884,7 +1197,7 @@ export default function ProductDetailClient({ productId }: ProductDetailClientPr
                         },
                         {
                           icon: <TruckOutlined style={{ fontSize: 16 }} />,
-                          children: (
+                          content: (
                             <div>
                               <Text strong>In Transit</Text>
                               <br />
@@ -894,7 +1207,7 @@ export default function ProductDetailClient({ productId }: ProductDetailClientPr
                         },
                         {
                           icon: <EnvironmentOutlined style={{ fontSize: 16 }} />,
-                          children: (
+                          content: (
                             <div>
                               <Text strong>Delivered</Text>
                               <br />

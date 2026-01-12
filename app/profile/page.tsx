@@ -29,13 +29,18 @@ import {
   MailOutlined,
   SafetyOutlined,
   SettingOutlined,
+  UploadOutlined,
+  DeleteOutlined,
+  CameraOutlined,
 } from "@ant-design/icons";
+import { Upload } from "antd";
 import Link from "next/link";
 import ProtectedRoute from "@/components/common/ProtectedRoute";
 import { useAppSelector, useAppDispatch } from "@/store/hooks";
 import { setCredentials } from "@/store/slices/authSlice";
 import { useGetMyProfileQuery, useUpdateMyProfileMutation } from "@/store/api/usersApi";
 import { useGetMyOrdersQuery } from "@/store/api/ordersApi";
+import { useUploadFileMutation } from "@/store/api/filesApi";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 
@@ -50,10 +55,13 @@ export default function ProfilePage() {
   const { user } = useAppSelector((state) => state.auth);
   const [form] = Form.useForm();
   const [activeTab, setActiveTab] = useState("overview");
+  const [profilePictureUploading, setProfilePictureUploading] = useState(false);
+  const [profilePicturePreview, setProfilePicturePreview] = useState<string | undefined>(undefined);
 
   // Fetch latest profile data from API
   const { data: profileData, isLoading: isLoadingProfile } = useGetMyProfileQuery();
   const [updateProfile, { isLoading: isUpdating }] = useUpdateMyProfileMutation();
+  const [uploadFile] = useUploadFileMutation();
 
   // Update form when profile data is loaded
   useEffect(() => {
@@ -63,6 +71,10 @@ export default function ProfilePage() {
         email: profileData.email,
         phone: profileData.phone || "",
       });
+      // Set profile picture preview if available
+      if (profileData.profile_picture) {
+        setProfilePicturePreview(profileData.profile_picture);
+      }
     } else if (user) {
       // Fallback to Redux user data if API data not available
       form.setFieldsValue({
@@ -70,6 +82,10 @@ export default function ProfilePage() {
         email: user.email,
         phone: user.phone || "",
       });
+      // Set profile picture preview if available
+      if (user.profile_picture) {
+        setProfilePicturePreview(user.profile_picture);
+      }
     }
   }, [profileData, user, form]);
 
@@ -79,6 +95,7 @@ export default function ProfilePage() {
         name: values.name,
         email: values.email,
         phone: values.phone,
+        profile_picture: profilePicturePreview,
       }).unwrap();
 
       // Update Redux store with new user data
@@ -94,6 +111,82 @@ export default function ProfilePage() {
     } catch (error: any) {
       message.error(error?.data?.message || "Failed to update profile");
     }
+  };
+
+  const handleProfilePictureUpload = (file: File) => {
+    // Validate file type
+    const isImage = file.type.startsWith("image/");
+    if (!isImage) {
+      message.error("You can only upload image files!");
+      return false;
+    }
+    // Validate file size (max 5MB)
+    const isLt5M = file.size / 1024 / 1024 < 5;
+    if (!isLt5M) {
+      message.error("Image must be smaller than 5MB!");
+      return false;
+    }
+
+    // Upload file
+    setProfilePictureUploading(true);
+    uploadFile(file)
+      .unwrap()
+      .then((response) => {
+        const imageUrl = response.data?.url || response.data?.fileName;
+        if (!imageUrl) {
+          throw new Error("Invalid response: missing image URL");
+        }
+        setProfilePicturePreview(imageUrl);
+        // Automatically update profile with new picture
+        updateProfile({
+          profile_picture: imageUrl,
+        })
+          .unwrap()
+          .then((result) => {
+            if (user) {
+              dispatch(
+                setCredentials({
+                  user: { ...user, ...result },
+                })
+              );
+            }
+            message.success("Profile picture updated successfully!");
+            setProfilePictureUploading(false);
+          })
+          .catch((error) => {
+            message.error(error?.data?.message || "Failed to update profile picture");
+            setProfilePictureUploading(false);
+          });
+      })
+      .catch((error) => {
+        const errorMessage = error?.data?.message || error?.message || "Failed to upload image";
+        message.error(errorMessage);
+        setProfilePictureUploading(false);
+      });
+
+    return false; // Prevent auto upload
+  };
+
+  const handleRemoveProfilePicture = () => {
+    setProfilePicturePreview(undefined);
+    // Update profile to remove picture
+    updateProfile({
+      profile_picture: undefined,
+    })
+      .unwrap()
+      .then((result) => {
+        if (user) {
+          dispatch(
+            setCredentials({
+              user: { ...user, ...result },
+            })
+          );
+        }
+        message.success("Profile picture removed successfully!");
+      })
+      .catch((error) => {
+        message.error(error?.data?.message || "Failed to remove profile picture");
+      });
   };
 
   const accountCreatedAt = profileData?.created_at
@@ -264,18 +357,61 @@ export default function ProfilePage() {
             <Row gutter={[24, 24]} align="middle">
               <Col xs={24} sm={8} style={{ textAlign: "center" }}>
                 <div className="avatar-container">
-                  <Avatar
-                    size={120}
-                    icon={<UserOutlined />}
-                    style={{
-                      background: "rgba(255, 255, 255, 0.2)",
-                      border: "4px solid white",
-                      fontSize: 60,
-                    }}
-                  />
-                  <div className="avatar-edit-btn">
-                    <EditOutlined style={{ color: "#667eea" }} />
-                  </div>
+                  <Upload
+                    name="file"
+                    listType="picture-circle"
+                    showUploadList={false}
+                    beforeUpload={handleProfilePictureUpload}
+                    disabled={profilePictureUploading}
+                  >
+                    <Avatar
+                      size={120}
+                      src={profilePicturePreview || profileData?.profile_picture || user?.profile_picture}
+                      icon={!profilePicturePreview && !profileData?.profile_picture && !user?.profile_picture ? <UserOutlined /> : undefined}
+                      style={{
+                        background: profilePicturePreview || profileData?.profile_picture || user?.profile_picture 
+                          ? "transparent" 
+                          : "rgba(255, 255, 255, 0.2)",
+                        border: "4px solid white",
+                        fontSize: 60,
+                        cursor: "pointer",
+                      }}
+                    />
+                  </Upload>
+                  {profilePicturePreview || profileData?.profile_picture || user?.profile_picture ? (
+                    <div 
+                      className="avatar-edit-btn"
+                      onClick={handleRemoveProfilePicture}
+                      style={{ cursor: "pointer" }}
+                    >
+                      <DeleteOutlined style={{ color: "#ff4d4f" }} />
+                    </div>
+                  ) : (
+                    <div className="avatar-edit-btn">
+                      <CameraOutlined style={{ color: "#667eea" }} />
+                    </div>
+                  )}
+                  {profilePictureUploading && (
+                    <div style={{
+                      position: "absolute",
+                      top: "50%",
+                      left: "50%",
+                      transform: "translate(-50%, -50%)",
+                      background: "rgba(0, 0, 0, 0.7)",
+                      color: "white",
+                      padding: "8px 16px",
+                      borderRadius: 8,
+                      fontSize: 12,
+                      zIndex: 10,
+                    }}>
+                      Uploading...
+                    </div>
+                  )}
+                </div>
+                <div style={{ marginTop: 16 }}>
+                  <Text style={{ color: "rgba(255,255,255,0.9)", fontSize: 14 }}>
+                    {profilePictureUploading ? "Uploading..." : "Click to change photo"}
+                  </Text>
                 </div>
               </Col>
               <Col xs={24} sm={16}>

@@ -7,6 +7,7 @@ export interface User {
   name: string;
   role: Role;
   phone?: string;
+  profile_picture?: string;
 }
 
 interface AuthState {

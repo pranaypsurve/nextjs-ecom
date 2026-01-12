@@ -37,8 +37,14 @@ const processQueue = (error: any = null) => {
 const baseQuery = fetchBaseQuery({
   baseUrl: API_BASE_URL,
   credentials: "include", // Important: Include cookies in all requests
-  prepareHeaders: (headers) => {
-    headers.set("Content-Type", "application/json");
+  prepareHeaders: (headers, api) => {
+    // Check if body is FormData - if so, don't set Content-Type
+    // Note: We can't access body directly here, so we'll handle it in query functions
+    // For now, always set Content-Type - individual queries can override if needed
+    const contentType = headers.get("Content-Type");
+    if (!contentType) {
+      headers.set("Content-Type", "application/json");
+    }
     // No Authorization header - cookies handle authentication
     return headers;
   },

@@ -452,8 +452,8 @@ export default function OrderDetailPage() {
                       const itemPrice = parseFloat(item.price || product.price || product.discount_price || 0);
                       const quantity = item.quantity || 1;
                       const itemTotal = parseFloat(item.total || itemPrice * quantity);
-                      // Use thumbnail first, then image, then first image from images array
-                      const productImage = product.thumbnail || product.image || product.images?.[0] || "";
+                      // Use only thumbnail for order items
+                      const productImage = product.thumbnail || "";
 
                       return (
                         <div key={index} className="order-item-card">

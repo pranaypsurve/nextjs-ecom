@@ -20,6 +20,8 @@ import {
   Statistic,
   Image,
   Radio,
+  Upload,
+  message as antdMessage,
 } from "antd";
 import {
   PlusOutlined,
@@ -29,6 +31,7 @@ import {
   ProductOutlined,
   ShoppingOutlined,
   WarningOutlined,
+  UploadOutlined,
 } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import {
@@ -41,6 +44,11 @@ import {
   type UpdateProductRequest,
 } from "@/store/api/productsApi";
 import { useGetCategoriesAdminQuery } from "@/store/api/categoriesApi";
+import {
+  useUploadFileMutation,
+  useUpdateFileMutation,
+  useDeleteFileMutation,
+} from "@/store/api/filesApi";
 import { formatCurrency } from "@/lib/utils/currency";
 import { generateSlug } from "@/lib/utils/productHelpers";
 
@@ -62,6 +70,17 @@ export default function AdminProductsPage() {
   const [createProduct, { isLoading: isCreating }] = useCreateProductMutation();
   const [updateProduct, { isLoading: isUpdating }] = useUpdateProductMutation();
   const [deleteProduct, { isLoading: isDeleting }] = useDeleteProductMutation();
+  
+  // File upload hooks
+  const [uploadFile, { isLoading: isUploading }] = useUploadFileMutation();
+  const [updateFile] = useUpdateFileMutation();
+  const [deleteFile] = useDeleteFileMutation();
+  
+  // Upload states
+  const [imagesUploading, setImagesUploading] = useState<boolean[]>([]);
+  const [thumbnailUploading, setThumbnailUploading] = useState(false);
+  const [imagesPreview, setImagesPreview] = useState<string[]>([]);
+  const [thumbnailPreview, setThumbnailPreview] = useState<string | undefined>(undefined);
 
   // Calculate statistics
   const stats = useMemo(() => {
@@ -103,8 +122,11 @@ export default function AdminProductsPage() {
   const handleAdd = () => {
     setEditingProduct(null);
     form.resetFields();
+    setImagesPreview([]);
+    setThumbnailPreview(undefined);
     // Set default values
     form.setFieldsValue({
+      images: [],
       is_on_sale: false,
       is_featured: false,
       is_returnable: true,
@@ -117,6 +139,13 @@ export default function AdminProductsPage() {
   const handleEdit = (product: ProductAdminResponse) => {
     setEditingProduct(product);
     
+    // Handle images: prefer images array, fallback to image string, or empty array
+    const productImages = product.images && product.images.length > 0 
+      ? product.images 
+      : product.image 
+        ? [product.image] 
+        : [];
+    
     const formValues = {
       name: product.name,
       slug: product.slug,
@@ -128,7 +157,7 @@ export default function AdminProductsPage() {
       low_stock_threshold: product.low_stock_threshold,
       color: product.color,
       material: product.material,
-      image: product.image,
+      images: productImages,
       thumbnail: product.thumbnail,
       weight: product.weight,
       tags: product.tags?.join(", "), // Convert array to comma-separated string
@@ -140,6 +169,8 @@ export default function AdminProductsPage() {
     };
     
     form.setFieldsValue(formValues);
+    setImagesPreview(productImages);
+    setThumbnailPreview(product.thumbnail);
     setIsModalOpen(true);
   };
 
@@ -161,6 +192,23 @@ export default function AdminProductsPage() {
         ? values.tags.split(",").map((tag: string) => tag.trim()).filter((tag: string) => tag)
         : [];
 
+      // Handle images: ensure it's an array with 2-8 images
+      const images = Array.isArray(values.images) 
+        ? values.images.filter((img: string) => img && img.trim()) 
+        : values.images 
+          ? [values.images].filter((img: string) => img && img.trim())
+          : [];
+      
+      // Validate images count (2-8)
+      if (images.length < 2) {
+        message.warning("Please upload at least 2 product images");
+        return;
+      }
+      if (images.length > 8) {
+        message.warning("Maximum 8 product images allowed");
+        return;
+      }
+
       const productData: CreateProductRequest = {
         name: values.name,
         slug: values.slug || generateSlug(values.name),
@@ -172,7 +220,7 @@ export default function AdminProductsPage() {
         low_stock_threshold: values.low_stock_threshold || 10,
         color: values.color ? (typeof values.color === 'string' ? values.color : values.color.toHexString?.() || '#000000') : undefined,
         material: values.material,
-        image: values.image,
+        images: images.length > 0 ? images : undefined,
         thumbnail: values.thumbnail,
         weight: values.weight ? Number(values.weight) : undefined,
         tags,
@@ -198,6 +246,8 @@ export default function AdminProductsPage() {
       setIsModalOpen(false);
       form.resetFields();
       setEditingProduct(null);
+      setImagesPreview([]);
+      setThumbnailPreview(undefined);
       refetch();
     } catch (error: any) {
       console.error("Error saving product:", error);
@@ -590,6 +640,8 @@ export default function AdminProductsPage() {
           onCancel={() => {
             setIsModalOpen(false);
             form.resetFields();
+            setImagesPreview([]);
+            setThumbnailPreview(undefined);
           }}
           footer={null}
           width={900}
@@ -856,19 +908,303 @@ export default function AdminProductsPage() {
             </Row>
 
             {/* Images */}
-            <Title level={5} style={{ marginTop: 24 }}>Images</Title>
-            <Row gutter={16}>
-              <Col span={12}>
-                <Form.Item name="image" label="Main Image URL">
-                  <Input size="large" placeholder="https://example.com/images/product.jpg" />
-                </Form.Item>
-              </Col>
-              <Col span={12}>
-                <Form.Item name="thumbnail" label="Thumbnail URL">
-                  <Input size="large" placeholder="https://example.com/images/product-thumb.jpg" />
-                </Form.Item>
-              </Col>
-            </Row>
+            <Title level={5} style={{ marginTop: 24 }}>Product Images</Title>
+            
+            {/* Multiple Product Images (2-8) */}
+            <Form.Item 
+              name="images" 
+              label="Product Images (2-8 required)"
+              tooltip="Upload 2-8 product images. These will be displayed in the product gallery."
+              rules={[
+                { required: true, message: "Please upload at least 2 product images" },
+                {
+                  validator: (_, value) => {
+                    const images = Array.isArray(value) ? value.filter((img: string) => img && img.trim()) : [];
+                    if (images.length < 2) {
+                      return Promise.reject(new Error("At least 2 images are required"));
+                    }
+                    if (images.length > 8) {
+                      return Promise.reject(new Error("Maximum 8 images allowed"));
+                    }
+                    return Promise.resolve();
+                  },
+                },
+              ]}
+            >
+              <div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 16 }}>
+                  {imagesPreview.map((img, index) => (
+                    <div
+                      key={index}
+                      style={{
+                        position: "relative",
+                        width: 100,
+                        height: 100,
+                        borderRadius: 8,
+                        overflow: "hidden",
+                        border: "1px solid #d9d9d9",
+                      }}
+                    >
+                      <img
+                        src={img}
+                        alt={`Product image ${index + 1}`}
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                      />
+                      <Button
+                        type="text"
+                        danger
+                        icon={<DeleteOutlined />}
+                        size="small"
+                        onClick={() => {
+                          const newImages = [...imagesPreview];
+                          newImages.splice(index, 1);
+                          setImagesPreview(newImages);
+                          form.setFieldValue("images", newImages);
+                          // Also update uploading state array
+                          const newUploading = [...imagesUploading];
+                          newUploading.splice(index, 1);
+                          setImagesUploading(newUploading);
+                        }}
+                        style={{
+                          position: "absolute",
+                          top: 0,
+                          right: 0,
+                          background: "rgba(255, 255, 255, 0.9)",
+                          padding: 4,
+                        }}
+                      />
+                    </div>
+                  ))}
+                  {imagesPreview.length < 8 && (
+                    <Upload
+                      name="file"
+                      listType="picture-card"
+                      showUploadList={false}
+                      beforeUpload={(file) => {
+                        // Validate file type
+                        const isImage = file.type.startsWith("image/");
+                        if (!isImage) {
+                          message.error("You can only upload image files!");
+                          return false;
+                        }
+                        // Validate file size (max 5MB)
+                        const isLt5M = file.size / 1024 / 1024 < 5;
+                        if (!isLt5M) {
+                          message.error("Image must be smaller than 5MB!");
+                          return false;
+                        }
+                        
+                        // Check if we've reached the limit
+                        if (imagesPreview.length >= 8) {
+                          message.warning("Maximum 8 images allowed");
+                          return false;
+                        }
+                        
+                        // Upload file
+                        const uploadIndex = imagesPreview.length;
+                        setImagesUploading((prev) => [...prev, true]);
+                        uploadFile(file)
+                          .unwrap()
+                          .then((response) => {
+                            const imageUrl = response.data?.url || response.data?.fileName;
+                            if (!imageUrl) {
+                              throw new Error("Invalid response: missing image URL");
+                            }
+                            const newImages = [...imagesPreview, imageUrl];
+                            setImagesPreview(newImages);
+                            form.setFieldValue("images", newImages);
+                            message.success("Image uploaded successfully!");
+                            setImagesUploading((prev) => {
+                              const updated = [...prev];
+                              updated[uploadIndex] = false;
+                              return updated;
+                            });
+                          })
+                          .catch((error) => {
+                            const errorMessage = error?.data?.message || error?.message || "Failed to upload image";
+                            message.error(errorMessage);
+                            setImagesUploading((prev) => {
+                              const updated = [...prev];
+                              updated[uploadIndex] = false;
+                              return updated;
+                            });
+                          });
+                        
+                        return false; // Prevent auto upload
+                      }}
+                      disabled={imagesUploading.some((loading) => loading)}
+                    >
+                      {imagesUploading.some((loading) => loading) ? (
+                        <div>
+                          <div>Uploading...</div>
+                        </div>
+                      ) : (
+                        <div>
+                          <UploadOutlined />
+                          <div style={{ marginTop: 8 }}>Add Image</div>
+                        </div>
+                      )}
+                    </Upload>
+                  )}
+                </div>
+                <div style={{ marginTop: 8 }}>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    {imagesPreview.length} / 8 images uploaded {imagesPreview.length < 2 && "(minimum 2 required)"}
+                  </Text>
+                </div>
+                <Input
+                  size="large"
+                  placeholder="Or enter image URL and press Enter"
+                  style={{ marginTop: 12 }}
+                  onPressEnter={(e) => {
+                    const url = (e.target as HTMLInputElement).value.trim();
+                    if (url && imagesPreview.length < 8) {
+                      if (!imagesPreview.includes(url)) {
+                        const newImages = [...imagesPreview, url];
+                        setImagesPreview(newImages);
+                        form.setFieldValue("images", newImages);
+                        (e.target as HTMLInputElement).value = "";
+                        message.success("Image URL added!");
+                      } else {
+                        message.warning("This image URL is already added");
+                      }
+                    } else if (imagesPreview.length >= 8) {
+                      message.warning("Maximum 8 images allowed");
+                    }
+                  }}
+                />
+              </div>
+            </Form.Item>
+
+            {/* Thumbnail Image (Single) */}
+            <Form.Item 
+              name="thumbnail" 
+              label="Thumbnail Image"
+              tooltip="Upload a single thumbnail image for product display (recommended: 300x300px)"
+            >
+              <Space orientation="vertical" style={{ width: "100%" }} size="middle">
+                <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                  {thumbnailPreview || form.getFieldValue("thumbnail") ? (
+                    <div
+                      style={{
+                        position: "relative",
+                        width: 120,
+                        height: 120,
+                        borderRadius: 8,
+                        overflow: "hidden",
+                        border: "1px solid #d9d9d9",
+                        flexShrink: 0,
+                      }}
+                    >
+                      <img
+                        src={thumbnailPreview || form.getFieldValue("thumbnail")}
+                        alt="Thumbnail"
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                      />
+                      <Button
+                        type="text"
+                        danger
+                        icon={<DeleteOutlined />}
+                        size="small"
+                        onClick={() => {
+                          form.setFieldValue("thumbnail", undefined);
+                          setThumbnailPreview(undefined);
+                        }}
+                        style={{
+                          position: "absolute",
+                          top: 0,
+                          right: 0,
+                          background: "rgba(255, 255, 255, 0.9)",
+                          padding: 4,
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <Upload
+                      name="file"
+                      listType="picture-card"
+                      showUploadList={false}
+                      multiple={false}
+                      maxCount={1}
+                      beforeUpload={(file) => {
+                        // Validate file type
+                        const isImage = file.type.startsWith("image/");
+                        if (!isImage) {
+                          message.error("You can only upload image files!");
+                          return false;
+                        }
+                        // Validate file size (max 5MB)
+                        const isLt5M = file.size / 1024 / 1024 < 5;
+                        if (!isLt5M) {
+                          message.error("Image must be smaller than 5MB!");
+                          return false;
+                        }
+                        
+                        // Upload file
+                        setThumbnailUploading(true);
+                        uploadFile(file)
+                          .unwrap()
+                          .then((response) => {
+                            const thumbnailUrl = response.data?.url || response.data?.fileName;
+                            if (!thumbnailUrl) {
+                              throw new Error("Invalid response: missing thumbnail URL");
+                            }
+                            form.setFieldValue("thumbnail", thumbnailUrl);
+                            setThumbnailPreview(thumbnailUrl);
+                            message.success("Thumbnail uploaded successfully!");
+                            setThumbnailUploading(false);
+                          })
+                          .catch((error) => {
+                            const errorMessage = error?.data?.message || error?.message || "Failed to upload thumbnail";
+                            message.error(errorMessage);
+                            setThumbnailUploading(false);
+                          });
+                        
+                        return false; // Prevent auto upload
+                      }}
+                      disabled={thumbnailUploading}
+                    >
+                      {thumbnailUploading ? (
+                        <div>
+                          <div>Uploading...</div>
+                        </div>
+                      ) : (
+                        <div>
+                          <UploadOutlined />
+                          <div style={{ marginTop: 8 }}>Upload</div>
+                        </div>
+                      )}
+                    </Upload>
+                  )}
+                </div>
+                <Input
+                  size="large"
+                  placeholder="Or enter thumbnail URL"
+                  value={thumbnailPreview || form.getFieldValue("thumbnail") || ""}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    form.setFieldValue("thumbnail", value);
+                    setThumbnailPreview(value);
+                  }}
+                  addonAfter={
+                    (thumbnailPreview || form.getFieldValue("thumbnail")) ? (
+                      <Button
+                        type="link"
+                        danger
+                        size="small"
+                        icon={<DeleteOutlined />}
+                        onClick={() => {
+                          form.setFieldValue("thumbnail", undefined);
+                          setThumbnailPreview(undefined);
+                        }}
+                      >
+                        Clear
+                      </Button>
+                    ) : null
+                  }
+                />
+              </Space>
+            </Form.Item>
 
             {/* Product Flags */}
             <Title level={5} style={{ marginTop: 24 }}>Product Settings</Title>

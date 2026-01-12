@@ -218,9 +218,9 @@ export default function ProductCard({ product, viewMode = "grid" }: ProductCardP
               overflow: "hidden",
             }}
           >
-            {product.image || product.thumbnail ? (
+            {product.thumbnail ? (
               <Image
-                src={product.image || product.thumbnail || ""}
+                src={product.thumbnail}
                 alt={product.name}
                 fill
                 style={{ objectFit: "cover", transition: "transform 0.3s ease" }}

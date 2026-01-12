@@ -18,8 +18,9 @@ export interface ProductResponse {
   low_stock_threshold: number;
   color?: string;
   material?: string;
-  image?: string;
-  thumbnail?: string;
+  image?: string; // Legacy single image (for backward compatibility)
+  images?: string[]; // Array of product images (2-8 recommended)
+  thumbnail?: string; // Single thumbnail for product display
   weight?: number;
   tags?: string[];
   is_on_sale: boolean;
@@ -56,8 +57,9 @@ export interface CreateProductRequest {
   low_stock_threshold?: number;
   color?: string;
   material?: string;
-  image?: string;
-  thumbnail?: string;
+  image?: string; // Legacy single image (for backward compatibility)
+  images?: string[]; // Array of product images (2-8 recommended)
+  thumbnail?: string; // Single thumbnail for product display
   weight?: number;
   tags?: string[];
   is_on_sale?: boolean;
@@ -78,8 +80,9 @@ export interface UpdateProductRequest {
   low_stock_threshold?: number;
   color?: string;
   material?: string;
-  image?: string;
-  thumbnail?: string;
+  image?: string; // Legacy single image (for backward compatibility)
+  images?: string[]; // Array of product images (2-8 recommended)
+  thumbnail?: string; // Single thumbnail for product display
   weight?: number;
   tags?: string[];
   is_on_sale?: boolean;

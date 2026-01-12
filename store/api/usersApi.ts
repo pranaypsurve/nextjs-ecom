@@ -9,12 +9,14 @@ export interface UserResponse extends User {
   created_at?: string;
   updated_at?: string;
   last_login?: string;
+  profile_picture?: string;
 }
 
 export interface UpdateUserProfileRequest {
   name?: string;
   phone?: string;
   email?: string;
+  profile_picture?: string;
 }
 
 export interface UpdateUserRequest {

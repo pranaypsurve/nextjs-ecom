@@ -28,7 +28,7 @@ export interface RegisterRequest {
   confirmPassword?: string;
   otp: string;
   phone?: string;
-  role?: string;
+  role?: Role | string;
 }
 
 export interface SendOtpRequest {

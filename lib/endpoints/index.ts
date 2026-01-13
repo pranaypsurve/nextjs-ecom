@@ -12,6 +12,8 @@ export const ENDPOINTS = {
     REFRESH: "/auth/refresh",
     ME: "/auth/me",
     PROFILE: "/auth/profile",
+    SEND_OTP: "/auth/send-otp",
+    VERIFY_OTP: "/auth/verify-otp",
   },
 
   // Products

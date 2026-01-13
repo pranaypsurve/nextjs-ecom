@@ -26,6 +26,27 @@ export interface RegisterRequest {
   email: string;
   password: string;
   confirmPassword?: string;
+  otp: string;
+  phone?: string;
+}
+
+export interface SendOtpRequest {
+  email: string;
+}
+
+export interface SendOtpResponse {
+  success: boolean;
+  message: string;
+}
+
+export interface VerifyOtpRequest {
+  email: string;
+  code: string;
+}
+
+export interface VerifyOtpResponse {
+  success: boolean;
+  message: string;
 }
 
 export interface RegisterResponse {
@@ -57,6 +78,24 @@ export const authApi = baseApi.injectEndpoints({
         url: ENDPOINTS.AUTH.REGISTER,
         method: "POST",
         body: userData,
+      }),
+    }),
+
+    // Send OTP mutation
+    sendOtp: builder.mutation<SendOtpResponse, SendOtpRequest>({
+      query: (data) => ({
+        url: ENDPOINTS.AUTH.SEND_OTP,
+        method: "POST",
+        body: data,
+      }),
+    }),
+
+    // Verify OTP mutation
+    verifyOtp: builder.mutation<VerifyOtpResponse, VerifyOtpRequest>({
+      query: (data) => ({
+        url: ENDPOINTS.AUTH.VERIFY_OTP,
+        method: "POST",
+        body: data,
       }),
     }),
 
@@ -92,5 +131,7 @@ export const {
   useLogoutMutation,
   useGetCurrentUserQuery,
   useRefreshTokenMutation,
+  useSendOtpMutation,
+  useVerifyOtpMutation,
 } = authApi;
 

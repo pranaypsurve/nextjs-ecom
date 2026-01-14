@@ -195,7 +195,7 @@ export default function RegisterPage() {
       const result = await register({
         name: formData.name!,
         email: formData.email!,
-        role: Role.ADMIN,
+        role: Role.USER,
         password: formData.password!,
         otp: otpCode,
         phone: formData.phone || "",

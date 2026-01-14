@@ -128,12 +128,16 @@ export const productsApi = baseApi.injectEndpoints({
         return `${ENDPOINTS.PRODUCTS.LIST}${queryString ? `?${queryString}` : ""}`;
       },
       providesTags: ["Product"],
+      // Force refetch on mount to get fresh data
+      keepUnusedDataFor: 0,
     }),
 
     // Get all products - Admin (includes all statuses)
     getProductsAdmin: builder.query<ProductAdminResponse[], void>({
       query: () => ENDPOINTS.PRODUCTS.LIST_ADMIN,
       providesTags: ["Product"],
+      // Force refetch on mount to get fresh data
+      keepUnusedDataFor: 0,
     }),
 
     // Get single product by ID
@@ -155,7 +159,12 @@ export const productsApi = baseApi.injectEndpoints({
         method: "POST",
         body,
       }),
-      invalidatesTags: ["Product"],
+      // Invalidate all Product queries to force refetch everywhere
+      invalidatesTags: (result, error) => {
+        if (error) return [];
+        // Invalidate all Product tags to force refetch on all clients
+        return [{ type: "Product" }, { type: "Product", id: "LIST" }];
+      },
     }),
 
     // Update product (Admin Only)

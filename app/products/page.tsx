@@ -64,8 +64,13 @@ function ProductsContent() {
   const [showOnSale, setShowOnSale] = useState(false);
   const [showFeatured, setShowFeatured] = useState(false);
 
-  // Get data from API
-  const { data: apiProducts = [], isLoading: productsLoading } = useGetProductsQuery();
+  // Get data from API - Force fresh data on every mount with polling
+  const { data: apiProducts = [], isLoading: productsLoading, refetch } = useGetProductsQuery(undefined, {
+    // Force fresh data on every mount
+    refetchOnMountOrArgChange: true,
+    // Poll every 30 seconds to check for new products
+    pollingInterval: 30000,
+  });
   const { data: categories = [] } = useGetCategoriesQuery();
 
   // Filter active products
@@ -86,6 +91,29 @@ function ProductsContent() {
       setPriceRange([0, maxPrice]);
     }
   }, [maxPrice]);
+
+  // Refetch on visibility change and window focus to get latest products
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        // Refetch when user comes back to the tab
+        refetch();
+      }
+    };
+    
+    // Also refetch on window focus
+    const handleFocus = () => {
+      refetch();
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [refetch]);
 
   const loading = productsLoading;
 

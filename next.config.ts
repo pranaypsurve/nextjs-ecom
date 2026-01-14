@@ -14,11 +14,11 @@ const nextConfig: NextConfig = {
     ],
   },
   
-  // Disable caching for development
+  // Cache configuration
   experimental: {
     staleTimes: {
       dynamic: 0,
-      static: 0,
+      static: 30, // Minimum allowed value is 30
     },
   },
 };

@@ -830,6 +830,114 @@ export default function ProductDetailClient({ productId }: ProductDetailClientPr
             padding: 2px 8px !important;
             margin: 2px !important;
           }
+
+          .specifications-title {
+            font-size: 16px !important;
+            margin-top: 16px !important;
+          }
+
+          .specifications-row {
+            margin-left: 0 !important;
+            margin-right: 0 !important;
+          }
+
+          .specification-card {
+            margin-bottom: 8px;
+          }
+
+          .specification-card .ant-statistic-title {
+            font-size: 12px !important;
+          }
+
+          .specification-card .ant-statistic-content {
+            font-size: 14px !important;
+          }
+
+          .rating-overview-row {
+            margin-left: 0 !important;
+            margin-right: 0 !important;
+          }
+
+          .rating-summary-card {
+            padding: 16px !important;
+          }
+
+          .rating-score {
+            font-size: 48px !important;
+          }
+
+          .rating-stars {
+            font-size: 18px !important;
+          }
+
+          .rating-bars-container {
+            padding: 8px 0 !important;
+          }
+
+          .rating-bar {
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 12px;
+          }
+
+          .rating-star-label {
+            min-width: auto !important;
+            width: 100%;
+            text-align: left;
+          }
+
+          .rating-progress {
+            width: 100%;
+          }
+
+          .rating-percent {
+            min-width: auto !important;
+            width: 100%;
+            text-align: left !important;
+          }
+
+          .info-tabs .ant-tabs-content {
+            padding: 8px !important;
+          }
+
+          .info-tabs .ant-tabs-tab {
+            padding: 8px 12px !important;
+            font-size: 14px !important;
+          }
+
+          .description-content,
+          .reviews-content,
+          .shipping-content {
+            padding: 12px !important;
+          }
+
+          .description-text {
+            font-size: 14px !important;
+            line-height: 1.6 !important;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .specifications-row .ant-col {
+            padding-left: 8px !important;
+            padding-right: 8px !important;
+          }
+
+          .specification-card {
+            padding: 12px !important;
+          }
+
+          .rating-summary-card {
+            padding: 12px !important;
+          }
+
+          .rating-score {
+            font-size: 36px !important;
+          }
+
+          .rating-stars {
+            font-size: 16px !important;
+          }
         }
       `}</style>
 
@@ -1295,33 +1403,33 @@ export default function ProductDetailClient({ productId }: ProductDetailClientPr
                 key: "description",
                 label: <span><FileTextOutlined /> Description</span>,
                 children: (
-                  <div style={{ padding: 16 }}>
-                    <Paragraph style={{ fontSize: 16, lineHeight: 1.8 }}>
+                  <div style={{ padding: 16 }} className="description-content">
+                    <Paragraph style={{ fontSize: 16, lineHeight: 1.8 }} className="description-text">
                       {product.description}
                     </Paragraph>
                     {(product.color || product.material || product.weight) && (
                       <>
-                        <Title level={5} style={{ marginTop: 24 }}>
+                        <Title level={5} style={{ marginTop: 24 }} className="specifications-title">
                           Specifications
                         </Title>
-                        <Row gutter={[16, 16]}>
+                        <Row gutter={[16, 16]} className="specifications-row">
                           {product.color && (
-                            <Col span={8}>
-                              <Card size="small">
+                            <Col xs={24} sm={12} md={8}>
+                              <Card size="small" className="specification-card">
                                 <Statistic title="Color" value={product.color} />
                               </Card>
                             </Col>
                           )}
                           {product.material && (
-                            <Col span={8}>
-                              <Card size="small">
+                            <Col xs={24} sm={12} md={8}>
+                              <Card size="small" className="specification-card">
                                 <Statistic title="Material" value={product.material} />
                               </Card>
                             </Col>
                           )}
                           {product.weight && (
-                            <Col span={8}>
-                              <Card size="small">
+                            <Col xs={24} sm={12} md={8}>
+                              <Card size="small" className="specification-card">
                                 <Statistic title="Weight" value={`${product.weight} kg`} />
                               </Card>
                             </Col>
@@ -1340,31 +1448,32 @@ export default function ProductDetailClient({ productId }: ProductDetailClientPr
                   </span>
                 ),
                 children: (
-                  <div style={{ padding: 16 }}>
+                  <div style={{ padding: 16 }} className="reviews-content">
                     {/* Rating Overview */}
-                    <Row gutter={[32, 32]} style={{ marginBottom: 32 }}>
+                    <Row gutter={[32, 32]} style={{ marginBottom: 32 }} className="rating-overview-row">
                       <Col xs={24} md={8}>
-                        <div style={{ textAlign: "center", padding: 24, background: "#f8f9fa", borderRadius: 12 }}>
-                          <Title level={1} style={{ margin: 0, fontSize: 64, color: "#667eea" }}>
+                        <div className="rating-summary-card" style={{ textAlign: "center", padding: 24, background: "#f8f9fa", borderRadius: 12 }}>
+                          <Title level={1} className="rating-score" style={{ margin: 0, fontSize: 64, color: "#667eea" }}>
                             {rating > 0 ? rating.toFixed(1) : "0.0"}
                           </Title>
-                          <Rate disabled defaultValue={rating} allowHalf style={{ fontSize: 24 }} />
+                          <Rate disabled defaultValue={rating} allowHalf className="rating-stars" style={{ fontSize: 24 }} />
                           <Text type="secondary" style={{ display: "block", marginTop: 8 }}>
                             Based on {reviews} reviews
                           </Text>
                         </div>
                       </Col>
                       <Col xs={24} md={16}>
-                        <div style={{ padding: "16px 0" }}>
+                        <div style={{ padding: "16px 0" }} className="rating-bars-container">
                           {[5, 4, 3, 2, 1].map((star) => (
                             <div key={star} className="rating-bar">
-                              <Text style={{ minWidth: 60 }}>{star} stars</Text>
+                              <Text className="rating-star-label" style={{ minWidth: 60 }}>{star} stars</Text>
                               <Progress
                                 percent={star === 5 ? 70 : star === 4 ? 20 : 10}
                                 strokeColor="#faad14"
+                                className="rating-progress"
                                 style={{ flex: 1 }}
                               />
-                              <Text type="secondary" style={{ minWidth: 40, textAlign: "right" }}>
+                              <Text type="secondary" className="rating-percent" style={{ minWidth: 40, textAlign: "right" }}>
                                 {star === 5 ? 70 : star === 4 ? 20 : 10}%
                               </Text>
                             </div>
@@ -1405,7 +1514,7 @@ export default function ProductDetailClient({ productId }: ProductDetailClientPr
                 key: "shipping",
                 label: <span><TruckOutlined /> Shipping</span>,
                 children: (
-                  <div style={{ padding: 16 }}>
+                  <div style={{ padding: 16 }} className="shipping-content">
                     <Timeline
                       items={[
                         {

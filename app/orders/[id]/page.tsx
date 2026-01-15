@@ -227,6 +227,42 @@ export default function OrderDetailPage() {
   const shippingAddress = (order as any).shipping_address || order.shippingAddress;
   const statusInfo = getStatusColor(order.status);
   const paymentColor = getPaymentStatusColor(order.paymentStatus);
+  const invoiceUrl = (order as any).invoice_url;
+  const invoiceFilePath = (order as any).invoice_file_path;
+
+  // Handle invoice print
+  const handlePrintInvoice = () => {
+    if (invoiceUrl) {
+      // Open invoice in new window for printing
+      const printWindow = window.open(invoiceUrl, '_blank');
+      if (printWindow) {
+        printWindow.onload = () => {
+          printWindow.print();
+        };
+      } else {
+        message.error("Please allow popups to print the invoice");
+      }
+    } else {
+      // Fallback to page print if no invoice URL
+      window.print();
+    }
+  };
+
+  // Handle invoice download - Open in new tab to avoid CORS issues
+  const handleDownloadInvoice = () => {
+    if (invoiceUrl) {
+      // Open invoice URL in new tab - user can download from there
+      // This avoids CORS issues completely
+      const newWindow = window.open(invoiceUrl, '_blank', 'noopener,noreferrer');
+      if (newWindow) {
+        message.success("Invoice opened in new tab. Use your browser's download option (Ctrl+S or right-click > Save As)");
+      } else {
+        message.error("Please allow popups to download the invoice");
+      }
+    } else {
+      message.warning("Invoice not available for this order");
+    }
+  };
 
   return (
     <ProtectedRoute>
@@ -672,7 +708,9 @@ export default function OrderDetailPage() {
                   block
                   size="large"
                   style={{ borderRadius: 8 }}
-                  onClick={() => window.print()}
+                  onClick={handlePrintInvoice}
+                  disabled={!invoiceUrl}
+                  title={invoiceUrl ? "Print invoice PDF" : "Invoice not available"}
                 >
                   Print Invoice
                 </Button>
@@ -681,10 +719,17 @@ export default function OrderDetailPage() {
                   block
                   size="large"
                   style={{ borderRadius: 8 }}
-                  onClick={() => message.info("Download feature coming soon")}
+                  onClick={handleDownloadInvoice}
+                  disabled={!invoiceUrl}
+                  title={invoiceUrl ? "Download invoice PDF" : "Invoice not available"}
                 >
                   Download Invoice
                 </Button>
+                {!invoiceUrl && (
+                  <Text type="secondary" style={{ fontSize: 12, textAlign: "center", display: "block", marginTop: 8 }}>
+                    Invoice will be available after order confirmation
+                  </Text>
+                )}
               </div>
             </Col>
           </Row>

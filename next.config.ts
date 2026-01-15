@@ -18,7 +18,7 @@ const nextConfig: NextConfig = {
   experimental: {
     staleTimes: {
       dynamic: 0,
-      static: 30, // Minimum allowed value is 30
+      static: 20, // Minimum allowed value is 30
     },
   },
 };

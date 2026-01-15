@@ -20,6 +20,7 @@ import {
   Col,
   Statistic,
   Select,
+  Alert,
 } from "antd";
 import {
   PlusOutlined,
@@ -29,6 +30,7 @@ import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   SearchOutlined,
+  InfoCircleOutlined,
 } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import { formatCurrency } from "@/lib/utils/currency";
@@ -53,13 +55,14 @@ export default function AdminCouponsPage() {
   const [editingCoupon, setEditingCoupon] = useState<CouponResponse | null>(null);
   const [form] = Form.useForm();
   const [conditionType, setConditionType] = useState<"products" | "categories" | "all">("all");
+  const [discountType, setDiscountType] = useState<"percentage" | "fixed" | null>(null);
   const [searchText, setSearchText] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
   // API hooks
   const { data: coupons = [], isLoading, refetch } = useGetCouponsAdminQuery();
-  const { data: products = [] } = useGetProductsAdminQuery();
-  const { data: categories = [] } = useGetCategoriesAdminQuery();
+  const { data: products = [], isLoading: productsLoading } = useGetProductsAdminQuery();
+  const { data: categories = [], isLoading: categoriesLoading } = useGetCategoriesAdminQuery();
   const [createCoupon, { isLoading: isCreating }] = useCreateCouponMutation();
   const [updateCoupon, { isLoading: isUpdating }] = useUpdateCouponMutation();
   const [deleteCoupon, { isLoading: isDeleting }] = useDeleteCouponMutation();
@@ -113,6 +116,7 @@ export default function AdminCouponsPage() {
   const handleAdd = () => {
     setEditingCoupon(null);
     setConditionType("all");
+    setDiscountType(null);
     form.resetFields();
     form.setFieldsValue({
       condition_type: "all",
@@ -125,6 +129,7 @@ export default function AdminCouponsPage() {
     setEditingCoupon(coupon);
     const conditionTypeValue = coupon.condition_type || "all";
     setConditionType(conditionTypeValue);
+    setDiscountType(coupon.type);
     form.setFieldsValue({
       code: coupon.code,
       type: coupon.type,
@@ -154,6 +159,29 @@ export default function AdminCouponsPage() {
 
   const handleSubmit = async (values: any) => {
     try {
+      // Validate based on discount type
+      if (values.type === "percentage") {
+        if (values.value <= 0 || values.value > 100) {
+          message.error("Percentage discount must be between 1 and 100");
+          return;
+        }
+      } else if (values.type === "fixed") {
+        if (values.value <= 0) {
+          message.error("Fixed discount amount must be greater than 0");
+          return;
+        }
+      }
+
+      // Validate condition type requirements
+      if (values.condition_type === "products" && (!values.applicable_product_ids || values.applicable_product_ids.length === 0)) {
+        message.error("Please select at least one product");
+        return;
+      }
+      if (values.condition_type === "categories" && (!values.applicable_category_ids || values.applicable_category_ids.length === 0)) {
+        message.error("Please select at least one category");
+        return;
+      }
+
       const payload = {
         code: values.code,
         type: values.type,
@@ -161,8 +189,8 @@ export default function AdminCouponsPage() {
         condition_type: values.condition_type || "all",
         applicable_product_ids: values.condition_type === "products" ? values.applicable_product_ids : undefined,
         applicable_category_ids: values.condition_type === "categories" ? values.applicable_category_ids : undefined,
-        minimum_amount: values.minimum_amount,
-        maximum_discount: values.maximum_discount,
+        minimum_amount: values.minimum_amount || undefined,
+        maximum_discount: values.type === "percentage" ? (values.maximum_discount || undefined) : undefined, // Only for percentage
         valid_from: values.valid_from?.toISOString(),
         valid_until: values.valid_until?.toISOString(),
         usage_limit: values.usage_limit || 0,
@@ -178,6 +206,8 @@ export default function AdminCouponsPage() {
       }
       setIsModalOpen(false);
       form.resetFields();
+      setDiscountType(null);
+      setConditionType("all");
       refetch();
     } catch (error: any) {
       message.error(error?.data?.message || "Operation failed");
@@ -456,6 +486,7 @@ export default function AdminCouponsPage() {
             setIsModalOpen(false);
             form.resetFields();
             setConditionType("all");
+            setDiscountType(null);
           }}
           footer={null}
           width={700}
@@ -475,28 +506,97 @@ export default function AdminCouponsPage() {
                   label="Discount Type"
                   rules={[{ required: true, message: "Please select discount type" }]}
                 >
-                  <Select size="large" placeholder="Select discount type">
-                    <Select.Option value="percentage">Percentage</Select.Option>
-                    <Select.Option value="fixed">Fixed Amount</Select.Option>
+                  <Select 
+                    size="large" 
+                    placeholder="Select discount type"
+                    onChange={(value) => {
+                      setDiscountType(value);
+                      // Reset max discount when switching types
+                      if (value === "fixed") {
+                        form.setFieldsValue({ maximum_discount: undefined });
+                      }
+                    }}
+                  >
+                    <Select.Option value="percentage">Percentage (%)</Select.Option>
+                    <Select.Option value="fixed">Fixed Amount ($)</Select.Option>
                   </Select>
                 </Form.Item>
               </Col>
               <Col span={12}>
                 <Form.Item
                   name="value"
-                  label="Discount Value"
-                  rules={[{ required: true, message: "Please enter discount value" }]}
+                  label={discountType === "percentage" ? "Discount Percentage (%)" : discountType === "fixed" ? "Discount Amount ($)" : "Discount Value"}
+                  rules={[
+                    { required: true, message: "Please enter discount value" },
+                    {
+                      validator: (_, value) => {
+                        if (!value) return Promise.resolve();
+                        const type = form.getFieldValue("type");
+                        if (type === "percentage") {
+                          if (value <= 0 || value > 100) {
+                            return Promise.reject(new Error("Percentage must be between 1 and 100"));
+                          }
+                        } else if (type === "fixed") {
+                          if (value <= 0) {
+                            return Promise.reject(new Error("Amount must be greater than 0"));
+                          }
+                        }
+                        return Promise.resolve();
+                      },
+                    },
+                  ]}
+                  tooltip={discountType === "percentage" ? "Enter a value between 1 and 100" : discountType === "fixed" ? "Enter the fixed discount amount" : "Select discount type first"}
                 >
-                  <InputNumber min={0} style={{ width: "100%" }} size="large" placeholder="Enter discount value" />
+                  <InputNumber 
+                    min={0} 
+                    max={discountType === "percentage" ? 100 : undefined}
+                    style={{ width: "100%" }} 
+                    size="large" 
+                    placeholder={discountType === "percentage" ? "e.g., 10" : discountType === "fixed" ? "e.g., 50" : "Enter value"}
+                    addonAfter={discountType === "percentage" ? "%" : discountType === "fixed" ? "$" : ""}
+                  />
                 </Form.Item>
               </Col>
             </Row>
 
-            <Form.Item name="condition_type" label="Applicable To" rules={[{ required: true }]}>
+            {/* Info Alert for Discount Type */}
+            {discountType && (
+              <Alert
+                message={
+                  discountType === "percentage" 
+                    ? "Percentage Discount: Enter a value between 1-100%. You can optionally set a maximum discount amount to cap the discount."
+                    : "Fixed Amount Discount: Enter the exact discount amount in dollars. Maximum discount field is not applicable."
+                }
+                type="info"
+                icon={<InfoCircleOutlined />}
+                showIcon
+                style={{ marginBottom: 16 }}
+              />
+            )}
+
+            <Form.Item 
+              name="condition_type" 
+              label="Applicable To" 
+              rules={[{ required: true, message: "Please select where this coupon applies" }]}
+              tooltip="Choose whether this coupon applies to all products, specific products, or specific categories"
+            >
               <Select
                 size="large"
-                placeholder="Select condition type"
-                onChange={(value) => setConditionType(value)}
+                placeholder="Select where coupon applies"
+                onChange={(value) => {
+                  setConditionType(value);
+                  // Clear selections when changing condition type
+                  if (value === "all") {
+                    form.setFieldsValue({
+                      applicable_product_ids: undefined,
+                      applicable_category_ids: undefined,
+                    });
+                  } else if (value === "products") {
+                    form.setFieldsValue({ applicable_category_ids: undefined });
+                  } else if (value === "categories") {
+                    form.setFieldsValue({ applicable_product_ids: undefined });
+                  }
+                }}
               >
                 <Select.Option value="all">All Products</Select.Option>
                 <Select.Option value="products">Specific Products</Select.Option>
@@ -505,52 +605,160 @@ export default function AdminCouponsPage() {
             </Form.Item>
 
             {conditionType === "products" && (
-              <Form.Item name="applicable_product_ids" label="Select Products">
+              <Form.Item 
+                name="applicable_product_ids" 
+                label="Select Products"
+                rules={[
+                  { 
+                    required: true, 
+                    message: "Please select at least one product",
+                    validator: (_, value) => {
+                      if (!value || value.length === 0) {
+                        return Promise.reject(new Error("Please select at least one product"));
+                      }
+                      return Promise.resolve();
+                    },
+                  },
+                ]}
+                tooltip="Select the products this coupon applies to"
+              >
                 <Select
                   mode="multiple"
                   size="large"
-                  placeholder="Select products"
+                  placeholder={productsLoading ? "Loading products..." : products.length === 0 ? "No products available" : "Search and select products"}
                   showSearch
-                  optionFilterProp="children"
-                  filterOption={(input, option) =>
-                    (option?.label ?? "").toLowerCase().includes(input.toLowerCase())
+                  loading={productsLoading}
+                  allowClear
+                  optionFilterProp="label"
+                  filterOption={(input, option) => {
+                    const label = option?.label ?? "";
+                    return String(label).toLowerCase().includes(input.toLowerCase());
+                  }}
+                  options={products && products.length > 0 ? products.map((p) => {
+                    const productId = typeof p.id === "string" ? (isNaN(Number(p.id)) ? p.id : Number(p.id)) : p.id;
+                    return {
+                      value: productId,
+                      label: `${p.name || "Unnamed Product"}${p.sku ? ` (${p.sku})` : ""}`,
+                    };
+                  }) : []}
+                  notFoundContent={
+                    productsLoading 
+                      ? "Loading products..." 
+                      : products.length === 0 
+                      ? "No products available. Please add products first." 
+                      : "No products found matching your search"
                   }
-                  options={products.map((p) => ({
-                    value: Number(p.id),
-                    label: p.name,
-                  }))}
                 />
               </Form.Item>
             )}
 
             {conditionType === "categories" && (
-              <Form.Item name="applicable_category_ids" label="Select Categories">
+              <Form.Item 
+                name="applicable_category_ids" 
+                label="Select Categories"
+                rules={[
+                  { 
+                    required: true, 
+                    message: "Please select at least one category",
+                    validator: (_, value) => {
+                      if (!value || value.length === 0) {
+                        return Promise.reject(new Error("Please select at least one category"));
+                      }
+                      return Promise.resolve();
+                    },
+                  },
+                ]}
+                tooltip="Select the categories this coupon applies to"
+              >
                 <Select
                   mode="multiple"
                   size="large"
-                  placeholder="Select categories"
+                  placeholder={categoriesLoading ? "Loading categories..." : categories.length === 0 ? "No categories available" : "Search and select categories"}
                   showSearch
-                  optionFilterProp="children"
-                  filterOption={(input, option) =>
-                    (option?.label ?? "").toLowerCase().includes(input.toLowerCase())
+                  loading={categoriesLoading}
+                  allowClear
+                  optionFilterProp="label"
+                  filterOption={(input, option) => {
+                    const label = option?.label ?? "";
+                    return String(label).toLowerCase().includes(input.toLowerCase());
+                  }}
+                  options={categories && categories.length > 0 ? categories.map((c) => {
+                    const categoryId = typeof c.id === "string" ? (isNaN(Number(c.id)) ? c.id : Number(c.id)) : c.id;
+                    return {
+                      value: categoryId,
+                      label: c.name || "Unnamed Category",
+                    };
+                  }) : []}
+                  notFoundContent={
+                    categoriesLoading 
+                      ? "Loading categories..." 
+                      : categories.length === 0 
+                      ? "No categories available. Please add categories first." 
+                      : "No categories found matching your search"
                   }
-                  options={categories.map((c) => ({
-                    value: Number(c.id),
-                    label: c.name,
-                  }))}
                 />
               </Form.Item>
             )}
 
             <Row gutter={16}>
               <Col span={12}>
-                <Form.Item name="minimum_amount" label="Minimum Purchase Amount">
-                  <InputNumber min={0} style={{ width: "100%" }} size="large" placeholder="Minimum amount" />
+                <Form.Item 
+                  name="minimum_amount" 
+                  label="Minimum Purchase Amount ($)"
+                  tooltip="Minimum order amount required to use this coupon. Leave empty for no minimum."
+                >
+                  <InputNumber 
+                    min={0} 
+                    style={{ width: "100%" }} 
+                    size="large" 
+                    placeholder="e.g., 100"
+                    addonBefore="$"
+                    precision={2}
+                  />
                 </Form.Item>
               </Col>
               <Col span={12}>
-                <Form.Item name="maximum_discount" label="Maximum Discount (for percentage)">
-                  <InputNumber min={0} style={{ width: "100%" }} size="large" placeholder="Maximum discount" />
+                <Form.Item 
+                  name="maximum_discount" 
+                  label={
+                    discountType === "percentage" 
+                      ? "Maximum Discount ($) - Only for Percentage" 
+                      : discountType === "fixed"
+                      ? "Maximum Discount - Not applicable for Fixed Amount"
+                      : "Maximum Discount ($) - Only for Percentage"
+                  }
+                  tooltip={
+                    discountType === "percentage"
+                      ? "Maximum discount amount in dollars. This limits the discount when using percentage. Leave empty for no limit."
+                      : discountType === "fixed"
+                      ? "Maximum discount only applies to percentage discounts, not fixed amounts."
+                      : "Select percentage discount type to use this field"
+                  }
+                  rules={
+                    discountType === "percentage"
+                      ? [
+                          {
+                            validator: (_, value) => {
+                              if (!value) return Promise.resolve(); // Optional
+                              if (value <= 0) {
+                                return Promise.reject(new Error("Maximum discount must be greater than 0"));
+                              }
+                              return Promise.resolve();
+                            },
+                          },
+                        ]
+                      : []
+                  }
+                >
+                  <InputNumber 
+                    min={0} 
+                    style={{ width: "100%" }} 
+                    size="large" 
+                    placeholder={discountType === "percentage" ? "e.g., 50" : "N/A for fixed"}
+                    addonBefore="$"
+                    precision={2}
+                    disabled={discountType === "fixed" || !discountType}
+                  />
                 </Form.Item>
               </Col>
             </Row>
@@ -594,6 +802,7 @@ export default function AdminCouponsPage() {
                     setIsModalOpen(false);
                     form.resetFields();
                     setConditionType("all");
+                    setDiscountType(null);
                   }}
                   size="large"
                 >

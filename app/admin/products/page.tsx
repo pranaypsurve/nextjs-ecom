@@ -151,15 +151,21 @@ export default function AdminProductsPage() {
       slug: product.slug,
       sku: product.sku,
       description: product.description,
-      price: product.price,
-      discount_price: product.discount_price,
-      inventory: product.inventory,
-      low_stock_threshold: product.low_stock_threshold,
+      price: typeof product.price === 'number' ? product.price : Number(product.price) || 0,
+      discount_price: product.discount_price !== null && product.discount_price !== undefined
+        ? (typeof product.discount_price === 'number' ? product.discount_price : Number(product.discount_price))
+        : undefined,
+      inventory: typeof product.inventory === 'number' ? product.inventory : Number(product.inventory) || 0,
+      low_stock_threshold: product.low_stock_threshold !== null && product.low_stock_threshold !== undefined
+        ? (typeof product.low_stock_threshold === 'number' ? product.low_stock_threshold : Number(product.low_stock_threshold))
+        : 10,
       color: product.color,
       material: product.material,
       images: productImages,
       thumbnail: product.thumbnail,
-      weight: product.weight,
+      weight: product.weight !== null && product.weight !== undefined
+        ? (typeof product.weight === 'number' ? product.weight : Number(product.weight))
+        : undefined,
       tags: product.tags?.join(", "), // Convert array to comma-separated string
       is_on_sale: product.is_on_sale,
       is_featured: product.is_featured,
@@ -214,19 +220,26 @@ export default function AdminProductsPage() {
         slug: values.slug || generateSlug(values.name),
         sku: values.sku,
         description: values.description,
-        price: Number(values.price),
-        discount_price: values.discount_price ? Number(values.discount_price) : undefined,
-        inventory: Number(values.inventory),
-        low_stock_threshold: values.low_stock_threshold || 10,
+        price: typeof values.price === 'number' ? values.price : Number(values.price) || 0,
+        discount_price: values.discount_price !== null && values.discount_price !== undefined 
+          ? (typeof values.discount_price === 'number' ? values.discount_price : Number(values.discount_price))
+          : undefined,
+        inventory: typeof values.inventory === 'number' ? values.inventory : Number(values.inventory) || 0,
+        low_stock_threshold: values.low_stock_threshold !== null && values.low_stock_threshold !== undefined
+          ? (typeof values.low_stock_threshold === 'number' ? values.low_stock_threshold : Number(values.low_stock_threshold))
+          : 10,
         color: values.color ? (typeof values.color === 'string' ? values.color : values.color.toHexString?.() || '#000000') : undefined,
         material: values.material,
         images: images.length > 0 ? images : undefined,
         thumbnail: values.thumbnail,
-        weight: values.weight ? Number(values.weight) : undefined,
+        weight: values.weight !== null && values.weight !== undefined
+          ? (typeof values.weight === 'number' ? values.weight : Number(values.weight))
+          : undefined,
         tags,
         is_on_sale: values.is_on_sale || false,
         is_featured: values.is_featured || false,
         is_returnable: values.is_returnable !== false,
+        status: values.status || "active",
         categoryId: String(values.categoryId),
       };
 
@@ -791,7 +804,18 @@ export default function AdminProductsPage() {
                   label="Price ($)" 
                   rules={[
                     { required: true, message: "Price is required" },
-                    { type: 'number', min: 0, message: "Price must be >= 0" }
+                    {
+                      validator: (_, value) => {
+                        if (value === null || value === undefined || value === '') {
+                          return Promise.reject(new Error("Price is required"));
+                        }
+                        const numValue = Number(value);
+                        if (isNaN(numValue) || numValue < 0) {
+                          return Promise.reject(new Error("Price must be >= 0"));
+                        }
+                        return Promise.resolve();
+                      },
+                    },
                   ]}
                 >
                   <InputNumber
@@ -801,6 +825,7 @@ export default function AdminProductsPage() {
                     min={0}
                     precision={2}
                     prefix="$"
+                    controls
                   />
                 </Form.Item>
               </Col>
@@ -812,11 +837,18 @@ export default function AdminProductsPage() {
                   rules={[
                     ({ getFieldValue }) => ({
                       validator(_, value) {
-                        const price = getFieldValue('price');
-                        if (!value || value < price) {
-                          return Promise.resolve();
+                        if (value === null || value === undefined || value === '') {
+                          return Promise.resolve(); // Optional field
                         }
-                        return Promise.reject(new Error('Discount price must be less than price'));
+                        const numValue = Number(value);
+                        if (isNaN(numValue) || numValue < 0) {
+                          return Promise.reject(new Error("Discount price must be >= 0"));
+                        }
+                        const price = getFieldValue('price');
+                        if (price !== null && price !== undefined && numValue >= Number(price)) {
+                          return Promise.reject(new Error('Discount price must be less than price'));
+                        }
+                        return Promise.resolve();
                       },
                     }),
                   ]}
@@ -828,6 +860,7 @@ export default function AdminProductsPage() {
                     min={0}
                     precision={2}
                     prefix="$"
+                    controls
                   />
                 </Form.Item>
               </Col>
@@ -837,7 +870,18 @@ export default function AdminProductsPage() {
                   label="Inventory" 
                   rules={[
                     { required: true, message: "Inventory is required" },
-                    { type: 'number', min: 0, message: "Inventory must be >= 0" }
+                    {
+                      validator: (_, value) => {
+                        if (value === null || value === undefined || value === '') {
+                          return Promise.reject(new Error("Inventory is required"));
+                        }
+                        const numValue = Number(value);
+                        if (isNaN(numValue) || numValue < 0) {
+                          return Promise.reject(new Error("Inventory must be >= 0"));
+                        }
+                        return Promise.resolve();
+                      },
+                    },
                   ]}
                 >
                   <InputNumber
@@ -845,6 +889,7 @@ export default function AdminProductsPage() {
                     style={{ width: "100%" }}
                     placeholder="100"
                     min={0}
+                    controls
                   />
                 </Form.Item>
               </Col>
@@ -854,12 +899,27 @@ export default function AdminProductsPage() {
               name="low_stock_threshold" 
               label="Low Stock Threshold"
               tooltip="Alert when inventory falls below this number"
+              rules={[
+                {
+                  validator: (_, value) => {
+                    if (value === null || value === undefined || value === '') {
+                      return Promise.resolve(); // Optional field, use default
+                    }
+                    const numValue = Number(value);
+                    if (isNaN(numValue) || numValue < 0) {
+                      return Promise.reject(new Error("Low stock threshold must be >= 0"));
+                    }
+                    return Promise.resolve();
+                  },
+                },
+              ]}
             >
               <InputNumber
                 size="large"
                 style={{ width: "100%" }}
                 placeholder="10"
                 min={0}
+                controls
               />
             </Form.Item>
 
@@ -884,7 +944,18 @@ export default function AdminProductsPage() {
                   name="weight" 
                   label="Weight (kg)"
                   rules={[
-                    { type: 'number', min: 0, message: "Weight must be >= 0" }
+                    {
+                      validator: (_, value) => {
+                        if (value === null || value === undefined || value === '') {
+                          return Promise.resolve(); // Weight is optional
+                        }
+                        const numValue = Number(value);
+                        if (isNaN(numValue) || numValue < 0) {
+                          return Promise.reject(new Error("Weight must be >= 0"));
+                        }
+                        return Promise.resolve();
+                      },
+                    },
                   ]}
                 >
                   <InputNumber
@@ -893,6 +964,7 @@ export default function AdminProductsPage() {
                     placeholder="0.250"
                     min={0}
                     precision={3}
+                    controls
                   />
                 </Form.Item>
               </Col>
@@ -1238,20 +1310,19 @@ export default function AdminProductsPage() {
               </Col>
             </Row>
 
-            {editingProduct && (
-              <Form.Item 
-                name="status" 
-                label="Status"
-              >
-                <Radio.Group>
-                  <Space orientation="horizontal">
-                    <Radio value="active">✅ Active</Radio>
-                    <Radio value="inactive">⏸️ Inactive</Radio>
-                    <Radio value="archived">📦 Archived</Radio>
-                  </Space>
-                </Radio.Group>
-              </Form.Item>
-            )}
+            <Form.Item 
+              name="status" 
+              label="Status"
+              tooltip="Control whether this product is active, inactive, or archived"
+            >
+              <Radio.Group>
+                <Space orientation="horizontal">
+                  <Radio value="active">✅ Active</Radio>
+                  <Radio value="inactive">⏸️ Inactive</Radio>
+                  <Radio value="archived">📦 Archived</Radio>
+                </Space>
+              </Radio.Group>
+            </Form.Item>
 
             {/* Read-Only Stats (Edit Mode) */}
             {editingProduct && (

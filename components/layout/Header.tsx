@@ -336,8 +336,9 @@ export default function Header() {
               textDecoration: "none",
               flexShrink: 0,
             }}
+            title="Clothing that is made with care and worn with pride."
           >
-            E-Commerce
+            Prisya Store
           </Link>
 
           {/* Desktop Navigation */}

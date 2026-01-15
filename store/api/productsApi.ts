@@ -38,6 +38,7 @@ export interface ProductResponse {
   };
   created_at: string;
   updated_at: string;
+  published_at?: string; // Date when product was published/activated (when status changed to active)
 }
 
 // Admin Response (includes all fields)
@@ -65,6 +66,7 @@ export interface CreateProductRequest {
   is_on_sale?: boolean;
   is_featured?: boolean;
   is_returnable?: boolean;
+  status?: "active" | "inactive" | "archived";
   categoryId: string;
 }
 

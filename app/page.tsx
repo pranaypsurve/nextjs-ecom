@@ -13,11 +13,17 @@ import {
   HeartOutlined,
 } from "@ant-design/icons";
 import Link from "next/link";
-import { useGetProductsQuery } from "@/store/api/productsApi";
+import { useGetProductsQuery, type ProductResponse } from "@/store/api/productsApi";
 import { useGetCategoriesQuery } from "@/store/api/categoriesApi";
 import ProductCard from "@/components/products/ProductCard";
 
 const { Title, Text, Paragraph } = Typography;
+
+// Configuration constants
+const PRODUCT_CONFIG = {
+  NEW_ARRIVALS_DAYS: 15, // Products published in last N days appear in New Arrivals
+  NEW_BADGE_DAYS: 15, // "NEW" badge shows for N days after publication
+} as const;
 
 export default function Home() {
   // Get data from API
@@ -35,16 +41,75 @@ export default function Home() {
     [allProducts]
   );
 
+  /**
+   * Get the published date of a product
+   * Priority: published_at > created_at (when status is active)
+   * This handles the case where a product is created but published/activated later
+   */
+  const getPublishedDate = (product: ProductResponse): Date | null => {
+    if (product.published_at) {
+      return new Date(product.published_at);
+    }
+    if (product.status === "active" && product.created_at) {
+      return new Date(product.created_at);
+    }
+    return null;
+  };
+
+  /**
+   * Calculate days since product was published
+   */
+  const getDaysSincePublished = (product: ProductResponse): number | null => {
+    const publishedDate = getPublishedDate(product);
+    if (!publishedDate) return null;
+    
+    const now = new Date();
+    return Math.floor((now.getTime() - publishedDate.getTime()) / (1000 * 60 * 60 * 24));
+  };
+
+  /**
+   * Check if product was published within specified days
+   * @param product - Product to check
+   * @param days - Number of days to check (default: NEW_ARRIVALS_DAYS)
+   */
+  const isPublishedWithinDays = (product: ProductResponse, days: number = PRODUCT_CONFIG.NEW_ARRIVALS_DAYS): boolean => {
+    const daysSincePublished = getDaysSincePublished(product);
+    if (daysSincePublished === null) return false;
+    
+    return daysSincePublished <= days && daysSincePublished >= 0;
+  };
+
+  /**
+   * Check if product is "New" (within configured days of publishedAt)
+   * A product is "New" for configured days after publishedAt, after that badge disappears
+   */
+  const isProductNew = (product: ProductResponse): boolean => {
+    return isPublishedWithinDays(product, PRODUCT_CONFIG.NEW_BADGE_DAYS);
+  };
+
   const topSellers = useMemo(
-    () => [...allProducts].filter((p) => p.status === "active").sort((a, b) => b.total_sold - a.total_sold).slice(0, 8),
+    () => 
+      [...allProducts]
+        .filter((p) => p.status === "active" && p.total_sold > 0)
+        .sort((a, b) => b.total_sold - a.total_sold)
+        .slice(0, 8),
     [allProducts]
   );
 
   const newArrivals = useMemo(
     () =>
       [...allProducts]
-        .filter((p) => p.status === "active")
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .filter((p) => p.status === "active" && isPublishedWithinDays(p, PRODUCT_CONFIG.NEW_ARRIVALS_DAYS))
+        .sort((a, b) => {
+          const dateA = getPublishedDate(a);
+          const dateB = getPublishedDate(b);
+          
+          if (!dateA && !dateB) return 0;
+          if (!dateA) return 1;
+          if (!dateB) return -1;
+          
+          return dateB.getTime() - dateA.getTime();
+        })
         .slice(0, 8),
     [allProducts]
   );
@@ -408,8 +473,8 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Best Sellers Section */}
-      {topSellers.length > 0 && (
+      {/* Best Sellers Section - Only show if there are products with sales */}
+      {topSellers.length > 0 && topSellers.some((p) => p.total_sold > 0) && (
         <section style={{ padding: "80px 24px", background: "#f5f5f5" }}>
           <div style={{ maxWidth: "1400px", margin: "0 auto" }}>
             <div style={{ textAlign: "center", marginBottom: "60px" }}>
@@ -471,9 +536,13 @@ export default function Home() {
                 <Row gutter={[24, 24]}>
                   {newArrivals.map((product) => (
                     <Col xs={24} sm={12} md={8} lg={6} key={product.id}>
-                      <Badge.Ribbon text="NEW" color="blue">
+                      {isProductNew(product) ? (
+                        <Badge.Ribbon text="NEW" color="blue">
+                          <ProductCard product={product} viewMode="grid" />
+                        </Badge.Ribbon>
+                      ) : (
                         <ProductCard product={product} viewMode="grid" />
-                      </Badge.Ribbon>
+                      )}
                     </Col>
                   ))}
                 </Row>

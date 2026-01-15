@@ -312,6 +312,9 @@ export default function ProductDetailClient({ productId }: ProductDetailClientPr
         .product-detail-page {
           min-height: calc(100vh - 64px);
           background: #f5f5f5;
+          overflow-x: hidden;
+          width: 100%;
+          max-width: 100vw;
         }
 
         .breadcrumb-section {
@@ -572,10 +575,25 @@ export default function ProductDetailClient({ productId }: ProductDetailClientPr
           margin-bottom: 8px;
         }
 
+        .product-title {
+          word-wrap: break-word;
+          overflow-wrap: break-word;
+          hyphens: auto;
+        }
+
         @media (max-width: 768px) {
+          .breadcrumb-container {
+            padding: 0 16px;
+          }
+
+          .content-wrapper {
+            padding: 16px 12px;
+          }
+
           .image-gallery-section {
             position: relative;
             top: 0;
+            padding: 16px;
           }
 
           .main-image-container {
@@ -609,8 +627,208 @@ export default function ProductDetailClient({ productId }: ProductDetailClientPr
             width: 70px;
           }
 
+          .product-info-card {
+            padding: 20px 16px;
+          }
+
           .feature-grid {
             grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+          }
+
+          .info-tabs {
+            padding: 16px;
+            margin-top: 24px;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .breadcrumb-container {
+            padding: 0 12px;
+          }
+
+          .content-wrapper {
+            padding: 12px 8px;
+          }
+
+          .image-gallery-section {
+            padding: 12px;
+          }
+
+          .main-image-container {
+            height: 280px;
+            margin-bottom: 12px;
+          }
+
+          .image-navigation {
+            width: 36px;
+            height: 36px;
+          }
+
+          .image-navigation.prev {
+            left: 4px;
+          }
+
+          .image-navigation.next {
+            right: 4px;
+          }
+
+          .thumbnail {
+            min-width: 60px;
+            width: 60px;
+          }
+
+          .thumbnail-scroll {
+            gap: 8px;
+          }
+
+          .product-info-card {
+            padding: 16px 12px;
+          }
+
+          .price-badge {
+            padding: 16px;
+            margin: 16px 0;
+          }
+
+          .action-section {
+            padding: 16px;
+            margin: 16px 0;
+          }
+
+          .feature-grid {
+            grid-template-columns: 1fr;
+            gap: 10px;
+          }
+
+          .feature-card {
+            padding: 16px;
+          }
+
+          .info-tabs {
+            padding: 12px;
+            margin-top: 16px;
+          }
+        }
+
+        @media (max-width: 360px) {
+          .breadcrumb-container {
+            padding: 0 8px;
+          }
+
+          .content-wrapper {
+            padding: 8px 4px;
+          }
+
+          .image-gallery-section {
+            padding: 8px;
+          }
+
+          .main-image-container {
+            height: 240px;
+            border-radius: 12px;
+          }
+
+          .image-navigation {
+            width: 32px;
+            height: 32px;
+          }
+
+          .image-counter {
+            bottom: 8px;
+            right: 8px;
+            padding: 4px 12px;
+            font-size: 12px;
+          }
+
+          .thumbnail {
+            min-width: 50px;
+            width: 50px;
+          }
+
+          .product-info-card {
+            padding: 12px 8px;
+            border-radius: 12px;
+          }
+
+          .price-badge {
+            padding: 12px;
+            border-radius: 8px;
+          }
+
+          .action-section {
+            padding: 12px;
+            border-radius: 8px;
+          }
+
+          .feature-card {
+            padding: 12px;
+          }
+
+          .info-tabs {
+            padding: 8px;
+          }
+
+          .product-title {
+            font-size: 24px !important;
+          }
+
+          .price-label {
+            font-size: 12px !important;
+          }
+
+          .price-amount {
+            font-size: 32px !important;
+          }
+
+          .price-original {
+            font-size: 20px !important;
+          }
+
+          .price-save-tag {
+            font-size: 14px !important;
+            padding: 4px 12px !important;
+          }
+
+          .price-container {
+            gap: 8px !important;
+          }
+
+          .action-buttons {
+            flex-direction: column;
+            width: 100% !important;
+          }
+
+          .add-to-cart-btn,
+          .buy-now-btn {
+            width: 100% !important;
+            min-width: 100% !important;
+            height: 48px !important;
+            font-size: 16px !important;
+          }
+
+          .action-buttons .ant-space-item {
+            width: 100%;
+          }
+
+          .ant-row {
+            margin-left: 0 !important;
+            margin-right: 0 !important;
+          }
+
+          .ant-col {
+            padding-left: 4px !important;
+            padding-right: 4px !important;
+          }
+
+          .ant-space {
+            flex-wrap: wrap;
+          }
+
+          .ant-tag {
+            font-size: 12px !important;
+            padding: 2px 8px !important;
+            margin: 2px !important;
           }
         }
       `}</style>
@@ -816,7 +1034,7 @@ export default function ProductDetailClient({ productId }: ProductDetailClientPr
                     </Tag>
                   )}
                 </Space>
-                <Title level={1} style={{ margin: 0, fontSize: 36, fontWeight: 800 }}>
+                <Title level={1} style={{ margin: 0, fontSize: 36, fontWeight: 800 }} className="product-title">
                   {product.name}
                 </Title>
                 <Text type="secondary" style={{ fontSize: 14 }}>
@@ -857,10 +1075,11 @@ export default function ProductDetailClient({ productId }: ProductDetailClientPr
               {/* Price Section */}
               <div className="price-badge">
                 <Space orientation="vertical" size="small" style={{ width: "100%"}}>
-                  <Text style={{ color: "rgba(255,255,255,0.9)", fontSize: 14 }}>Price:</Text>
-                  <div style={{ display: "flex", alignItems: "baseline", gap: 16, flexWrap: "wrap" }}>
+                  <Text style={{ color: "rgba(255,255,255,0.9)", fontSize: 14 }} className="price-label">Price:</Text>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 16, flexWrap: "wrap" }} className="price-container">
                     <Text
                       strong
+                      className="price-amount"
                       style={{
                         fontSize: 48,
                         fontWeight: 800,
@@ -874,6 +1093,7 @@ export default function ProductDetailClient({ productId }: ProductDetailClientPr
                       <>
                         <Text
                           delete
+                          className="price-original"
                           style={{
                             fontSize: 28,
                             color: "rgba(255, 255, 255, 0.7)",
@@ -883,6 +1103,7 @@ export default function ProductDetailClient({ productId }: ProductDetailClientPr
                         </Text>
                         <Tag
                           color="red"
+                          className="price-save-tag"
                           style={{
                             fontSize: 18,
                             padding: "6px 16px",
@@ -979,7 +1200,7 @@ export default function ProductDetailClient({ productId }: ProductDetailClientPr
                     </Space>
                   </div>
 
-                  <Space size="middle" style={{ width: "100%" }}>
+                  <Space size="middle" style={{ width: "100%" }} className="action-buttons">
                     <Button
                       type="primary"
                       size="large"
@@ -987,6 +1208,7 @@ export default function ProductDetailClient({ productId }: ProductDetailClientPr
                       onClick={handleAddToCart}
                       disabled={isOutOfStock}
                       block
+                      className="add-to-cart-btn"
                       style={{
                         height: 56,
                         fontSize: 18,
@@ -1005,6 +1227,7 @@ export default function ProductDetailClient({ productId }: ProductDetailClientPr
                       size="large"
                       disabled={isOutOfStock}
                       onClick={handleBuyNow}
+                      className="buy-now-btn"
                       style={{
                         height: 56,
                         fontSize: 16,
